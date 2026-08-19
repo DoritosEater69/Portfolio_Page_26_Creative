@@ -1,0 +1,5 @@
+.DS_Store
+.claude/
+.htpasswd
+.build-tools/node_modules/
+.build-tools/package-lock.json

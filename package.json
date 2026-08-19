@@ -1,0 +1,41 @@
+{
+  "name": "bewerbung.nicworks.de",
+  "version": "1.0.0",
+  "description": "Statische Single-File-Portfolio-Website (index.html) ohne Build-Prozess. Diese Datei dokumentiert ausschließlich die tatsächlich eingebundenen externen Dienste/Bibliotheken für Impressum & Datenschutzerklärung - sie wird nicht als npm-Projekt ausgeführt.",
+  "private": true,
+  "dependencies": {
+    "cookieconsent": {
+      "version": "3.1.0",
+      "provider": "Orest Bida (orestbida)",
+      "source": "https://cdn.jsdelivr.net/gh/orestbida/cookieconsent@3.1.0/",
+      "purpose": "Cookie-Consent-Banner (Einwilligungsverwaltung) - CSS + JS via jsDelivr-CDN eingebunden, mit Subresource-Integrity (SRI) abgesichert. Nur auf bewerbung.nicworks.de - live/ (nicworks.de) nutzt stattdessen Cookiebot, siehe build-live.js.",
+      "dataProcessed": "Consent-Status wird lokal im Browser (localStorage) gespeichert, keine Server-Kommunikation mit dem Anbieter.",
+      "privacyPolicy": "https://github.com/orestbida/cookieconsent (Open-Source-Bibliothek, kein eigener Tracking-Server)"
+    },
+    "formspree": {
+      "version": "n/a (externer Formular-Endpoint)",
+      "provider": "Formspree, Inc.",
+      "source": "https://formspree.io/f/xzdnnwer",
+      "purpose": "Verarbeitung der Formulareinsendungen des Kontaktformulars (POST-Request beim Absenden).",
+      "dataProcessed": "Formulardaten des Nutzers (Name, E-Mail, Nachricht), die er aktiv im Kontaktformular einträgt.",
+      "privacyPolicy": "https://formspree.io/legal/privacy-policy"
+    },
+    "adobe-xd-embed": {
+      "version": "n/a (externes iFrame-Embed)",
+      "provider": "Adobe Inc.",
+      "source": "https://xd.adobe.com/embed/d5bda0c4-538c-484c-80e0-387a84b5e490-80ee/",
+      "purpose": "Eingebettetes Klick-Prototyp (ProteinUp Case Study) via iFrame.",
+      "dataProcessed": "Erst nach aktiver Nutzer-Zustimmung (Consent-Gate) geladen - vorher nur data-src, kein automatischer Verbindungsaufbau zu Adobe.",
+      "privacyPolicy": "https://www.adobe.com/privacy/policy.html"
+    }
+  },
+  "selfHosted": {
+    "fonts": [
+      "Assignate", "Youth Signature", "Fraunces", "JetBrains Mono", "Inter", "Roboto"
+    ],
+    "note": "Alle Schriftarten liegen lokal als .woff2 im Ordner /font - kein externer Google-Fonts- oder Adobe-Fonts-Aufruf, keine damit verbundene Datenübertragung an Dritte."
+  },
+  "notPresent": {
+    "note": "Kein Google Analytics, kein Google Tag Manager, kein Facebook-Pixel, kein sonstiges Tracking-/Analyse-Tool im Code gefunden."
+  }
+}

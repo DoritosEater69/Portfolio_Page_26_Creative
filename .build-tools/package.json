@@ -1,0 +1,9 @@
+{
+  "name": "bewerbung-build-tools",
+  "private": true,
+  "description": "Nur fuer den optionalen Minify-Schritt in build-live.js. Betrifft ausschliesslich live/ - bewerbung/index.html bleibt die unveraenderte, lesbare Quelle. 'npm install' hier ausfuehren, bevor build-live.js mit Minify laeuft.",
+  "devDependencies": {
+    "terser": "^5.31.0",
+    "clean-css": "^5.3.3"
+  }
+}
