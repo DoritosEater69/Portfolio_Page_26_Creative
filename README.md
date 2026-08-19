@@ -1,6 +1,20 @@
 # Portfolio-Seite — Niclas Koch
 
-## ZWEI ORDNER, EINE QUELLE DER WAHRHEIT (seit 2026-08-06)
+## 🟢 AKTIVER ARBEITSORDNER seit 2026-08-19 — `creative/`
+
+Dies ist der aktuelle Arbeitsordner für die neue Version der Portfolio-Seite. Alle
+Änderungen ab dem 2026-08-19 landen ausschließlich hier. Die Geschwister-Ordner
+`../bewerbung/` und `../live/` sind eingefroren (Stand 2026-08-19) und werden nicht mehr
+bearbeitet — `creative/` wurde 1:1 aus `bewerbung/` kopiert (ohne dessen Git-Historie,
+eigenes frisches lokales Git-Repo, noch ohne Remote) und ist der neue Ausgangspunkt.
+
+Der Abschnitt "ZWEI ORDNER, EINE QUELLE DER WAHRHEIT" unten beschreibt den historischen
+`bewerbung/`/`live/`-Workflow (Build-Script `build-live.js`, `build-bewerbung-dist.js` usw.)
+— die Mechanik gilt technisch unverändert auch hier in `creative/`, nur eben bezogen auf
+diesen Ordner statt auf `bewerbung/`/`live/`. Sobald sich die Zielstruktur für `creative/`
+ändert (z. B. eigene Domain/Deploy-Ziel), wird dieser Abschnitt aktualisiert.
+
+## ZWEI ORDNER, EINE QUELLE DER WAHRHEIT (seit 2026-08-06, historisch — siehe oben)
 
 Es gibt lokal zwei Geschwister-Ordner:
 
