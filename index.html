@@ -1972,6 +1972,43 @@
 </head>
 <body class="intro-active">
 
+<!-- 2026-08-26 Nic: SVG-Filter-Defs fuer den Lens-/Fisheye-Streckeffekt der vier grossen
+     Title-Bereiche (Digital-Designer-Zeile, Zitat, Folge-Screen, Hero-Name). Rein visuell,
+     width/height=0 damit nichts vom sichtbaren Layout belegt wird. Die feDisplacementMap
+     verschiebt Pixel anhand des Gruenkanals einer vertikalen Verlaufsflaeche (unten=kein
+     Versatz, nach oben zunehmend staerker, ab ca. 62% Hoehe beschleunigt) - simuliert eine
+     Schrift, die ueber eine gewoelbte Glaslinse gezogen wird, statt eines gleichmaessigen
+     scaleY(). scale-Attribut jedes feDisplacementMap wird per JS live an die Scroll-Position
+     (dieselbe prog-Berechnung wie der bestehende Blur/Fade) gekoppelt, siehe applyLensWarp(). -->
+<svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="lens-map-gradient" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%"  stop-color="#808000"/>
+      <stop offset="42%" stop-color="#808000"/>
+      <stop offset="62%" stop-color="#5c5000"/>
+      <stop offset="80%" stop-color="#302800"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </linearGradient>
+    <rect id="lens-map-rect" x="0" y="0" width="10" height="100" fill="url(#lens-map-gradient)"/>
+    <filter id="lens-warp-title" x="-50%" y="-250%" width="200%" height="400%" color-interpolation-filters="sRGB">
+      <feImage xlink:href="#lens-map-rect" href="#lens-map-rect" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" result="lensmap"/>
+      <feDisplacementMap id="lens-disp-title" in="SourceGraphic" in2="lensmap" scale="0" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="lens-warp-quote" x="-50%" y="-250%" width="200%" height="400%" color-interpolation-filters="sRGB">
+      <feImage xlink:href="#lens-map-rect" href="#lens-map-rect" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" result="lensmap"/>
+      <feDisplacementMap id="lens-disp-quote" in="SourceGraphic" in2="lensmap" scale="0" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="lens-warp-followup" x="-50%" y="-250%" width="200%" height="400%" color-interpolation-filters="sRGB">
+      <feImage xlink:href="#lens-map-rect" href="#lens-map-rect" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" result="lensmap"/>
+      <feDisplacementMap id="lens-disp-followup" in="SourceGraphic" in2="lensmap" scale="0" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="lens-warp-hero" x="-50%" y="-250%" width="200%" height="400%" color-interpolation-filters="sRGB">
+      <feImage xlink:href="#lens-map-rect" href="#lens-map-rect" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" result="lensmap"/>
+      <feDisplacementMap id="lens-disp-hero" in="SourceGraphic" in2="lensmap" scale="0" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+
 <div id="intro-overlay"><div id="intro-cursor"></div></div>
 <div id="spotlight"></div>
 <div id="cursor-trail"></div>
@@ -2978,31 +3015,7 @@ const VITA = [ {
 } ];
 
 const GALLERY_IMAGES = [ {
-    src: "img/inline/inline-002.webp",
-    w: 600,
-    h: 850
-}, {
-    src: "img/inline/inline-003.webp",
-    w: 600,
-    h: 850
-}, {
-    src: "img/inline/inline-004.webp",
-    w: 600,
-    h: 850
-}, {
-    src: "img/inline/inline-005.webp",
-    w: 600,
-    h: 850
-}, {
-    src: "img/inline/inline-006.webp",
-    w: 600,
-    h: 850
-}, {
-    src: "img/inline/inline-007.webp",
-    w: 600,
-    h: 850
-}, {
-    src: "img/inline/inline-008.webp",
+    src: "img/inline/inline-010.webp",
     w: 600,
     h: 850
 }, {
@@ -3010,11 +3023,11 @@ const GALLERY_IMAGES = [ {
     w: 600,
     h: 850
 }, {
-    src: "img/inline/inline-010.webp",
-    w: 600,
+    src: "img/inline/inline-089.webp",
+    w: 680,
     h: 850
 }, {
-    src: "img/inline/inline-011.webp",
+    src: "img/inline/inline-007.webp",
     w: 600,
     h: 850
 }, {
@@ -3022,15 +3035,11 @@ const GALLERY_IMAGES = [ {
     w: 850,
     h: 600
 }, {
+    src: "img/inline/inline-020.webp",
+    w: 600,
+    h: 850
+}, {
     src: "img/inline/inline-013.webp",
-    w: 600,
-    h: 850
-}, {
-    src: "img/inline/inline-014.webp",
-    w: 600,
-    h: 850
-}, {
-    src: "img/inline/inline-015.webp",
     w: 600,
     h: 850
 }, {
@@ -3038,31 +3047,19 @@ const GALLERY_IMAGES = [ {
     w: 600,
     h: 850
 }, {
-    src: "img/inline/inline-017.webp",
+    src: "img/inline/inline-025.webp",
     w: 600,
     h: 850
 }, {
-    src: "img/inline/inline-018.webp",
+    src: "img/inline/inline-015.webp",
     w: 600,
     h: 850
 }, {
-    src: "img/inline/inline-019.webp",
-    w: 600,
+    src: "img/inline/inline-090.webp",
+    w: 680,
     h: 850
 }, {
-    src: "img/inline/inline-020.webp",
-    w: 600,
-    h: 850
-}, {
-    src: "img/inline/inline-021.webp",
-    w: 600,
-    h: 850
-}, {
-    src: "img/inline/inline-022.webp",
-    w: 600,
-    h: 850
-}, {
-    src: "img/inline/inline-023.webp",
+    src: "img/inline/inline-002.webp",
     w: 600,
     h: 850
 }, {
@@ -3070,81 +3067,73 @@ const GALLERY_IMAGES = [ {
     w: 600,
     h: 850
 }, {
-    src: "img/inline/inline-025.webp",
+    src: "img/inline/inline-028.webp",
     w: 600,
+    h: 850
+}, {
+    src: "img/inline/inline-091.webp",
+    w: 680,
     h: 850
 }, {
     src: "img/inline/inline-026.webp",
     w: 600,
     h: 850
 }, {
-    src: "img/inline/inline-027.webp",
+    src: "img/inline/inline-014.webp",
     w: 600,
     h: 850
 }, {
-    src: "img/inline/inline-028.webp",
+    src: "img/inline/inline-005.webp",
     w: 600,
     h: 850
 }, {
-    src: "img/inline/inline-089.webp",
-    w: 680,
+    src: "img/inline/inline-023.webp",
+    w: 600,
     h: 850
 }, {
-    src: "img/inline/inline-090.webp",
-    w: 680,
+    src: "img/inline/inline-008.webp",
+    w: 600,
     h: 850
 }, {
-    src: "img/inline/inline-091.webp",
-    w: 680,
+    src: "img/inline/inline-018.webp",
+    w: 600,
+    h: 850
+}, {
+    src: "img/inline/inline-006.webp",
+    w: 600,
+    h: 850
+}, {
+    src: "img/inline/inline-011.webp",
+    w: 600,
+    h: 850
+}, {
+    src: "img/inline/inline-022.webp",
+    w: 600,
+    h: 850
+}, {
+    src: "img/inline/inline-004.webp",
+    w: 600,
+    h: 850
+}, {
+    src: "img/inline/inline-003.webp",
+    w: 600,
+    h: 850
+}, {
+    src: "img/inline/inline-021.webp",
+    w: 600,
+    h: 850
+}, {
+    src: "img/inline/inline-019.webp",
+    w: 600,
+    h: 850
+}, {
+    src: "img/inline/inline-017.webp",
+    w: 600,
     h: 850
 } ];
 
 const GALLERY_IMAGES_PHOTOS = [ {
-    src: "img/inline/inline-029.webp",
-    w: 900,
-    h: 600
-}, {
-    src: "img/inline/inline-030.webp",
-    w: 900,
-    h: 600
-}, {
-    src: "img/inline/inline-031.webp",
-    w: 900,
-    h: 600
-}, {
     src: "img/inline/inline-032.webp",
-    w: 900,
-    h: 600
-}, {
-    src: "img/inline/inline-033.webp",
-    w: 900,
-    h: 600
-}, {
-    src: "img/inline/inline-034.webp",
-    w: 900,
-    h: 600
-}, {
-    src: "img/inline/inline-035.webp",
-    w: 900,
-    h: 600
-}, {
-    src: "img/inline/inline-036.webp",
-    w: 900,
-    h: 600
-}, {
-    src: "img/inline/inline-037.webp",
-    w: 900,
-    h: 600
-}, {
-    src: "img/inline/inline-038.webp",
-    w: 900,
-    h: 600
-}, {
-    src: "img/inline/inline-039.webp",
-    w: 900,
-    h: 600
-}, {
-    src: "img/inline/inline-040.webp",
     w: 900,
     h: 600
 }, {
@@ -3152,15 +3141,7 @@ const GALLERY_IMAGES_PHOTOS = [ {
     w: 900,
     h: 600
 }, {
-    src: "img/inline/inline-042.webp",
-    w: 900,
-    h: 600
-}, {
-    src: "img/inline/inline-043.webp",
-    w: 900,
-    h: 600
-}, {
-    src: "img/inline/inline-044.webp",
+    src: "img/inline/inline-031.webp",
     w: 900,
     h: 600
 }, {
@@ -3176,11 +3157,7 @@ const GALLERY_IMAGES_PHOTOS = [ {
     w: 900,
     h: 600
 }, {
-    src: "img/inline/inline-048.webp",
-    w: 900,
-    h: 600
-}, {
-    src: "img/inline/inline-049.webp",
+    src: "img/inline/inline-042.webp",
     w: 900,
     h: 600
 }, {
@@ -3188,7 +3165,63 @@ const GALLERY_IMAGES_PHOTOS = [ {
     w: 900,
     h: 600
 }, {
+    src: "img/inline/inline-048.webp",
+    w: 900,
+    h: 600
+}, {
     src: "img/inline/inline-051.webp",
+    w: 900,
+    h: 600
+}, {
+    src: "img/inline/inline-030.webp",
+    w: 900,
+    h: 600
+}, {
+    src: "img/inline/inline-038.webp",
+    w: 900,
+    h: 600
+}, {
+    src: "img/inline/inline-034.webp",
+    w: 900,
+    h: 600
+}, {
+    src: "img/inline/inline-049.webp",
+    w: 900,
+    h: 600
+}, {
+    src: "img/inline/inline-033.webp",
+    w: 900,
+    h: 600
+}, {
+    src: "img/inline/inline-044.webp",
+    w: 900,
+    h: 600
+}, {
+    src: "img/inline/inline-029.webp",
+    w: 900,
+    h: 600
+}, {
+    src: "img/inline/inline-036.webp",
+    w: 900,
+    h: 600
+}, {
+    src: "img/inline/inline-043.webp",
+    w: 900,
+    h: 600
+}, {
+    src: "img/inline/inline-037.webp",
+    w: 900,
+    h: 600
+}, {
+    src: "img/inline/inline-035.webp",
+    w: 900,
+    h: 600
+}, {
+    src: "img/inline/inline-039.webp",
+    w: 900,
+    h: 600
+}, {
+    src: "img/inline/inline-040.webp",
     w: 900,
     h: 600
 } ];
@@ -6221,7 +6254,13 @@ function updateOnScroll() {
     // Feedback Nic 2026-08-19: vh*3 -> vh*5, da vor #lorem-section jetzt VIER volle 100vh-
     // Screens liegen (Digital Designer, Zitat, Folge-Screen, Hero) statt vorher zwei (#psst,
     // #hero) - sonst greift die Blur/Fade-Gate unten beim initialen Laden nicht mehr zuverlaessig.
-    if (!(loremRect.bottom < -vh || loremRect.top > vh * 5)) {
+    // 2026-08-26: vh*5 -> vh*6, da jetzt FUENF volle 100vh-Screens vor #lorem-section liegen
+    // (neue Pretitle-Zeile "you're looking for an" zusaetzlich vor Digital Designer). Bug-Fix:
+    // ohne diese Anpassung schloss das Gate beim Hochscrollen zurueck zum Seitenanfang zu frueh,
+    // introPretitleEl/introTitleEl blieben dann auf ihrem zuletzt gesetzten (fast komplett
+    // ausgefadeten) Opacity-/Blur-Wert haengen, weil der komplette Block darunter uebersprungen
+    // und nicht mehr aktualisiert wurde.
+    if (!(loremRect.bottom < -vh || loremRect.top > vh * 6)) {
         // Feedback Nic 2026-08-19: "die ersten beiden Schriften sollen beide mitscrollen etwas" -
         // Digital-Designer-, Zitat- und Folge-Screen bekommen denselben leichten Scroll-Parallax
         // (Blur+Fade beim Wegscrollen), den #hero schon hatte. "Mobil einfach ohne scrollen" -
@@ -6249,6 +6288,18 @@ function updateOnScroll() {
                     // bis 0 (vorher nur bis 40%) - der Screen verschwindet also komplett.
                     el.style.filter = `blur(${prog * 10}px) brightness(${1 - prog})`;
                     el.style.opacity = String(1 - prog);
+                }
+                // 2026-08-26 Nic: Lens-/Fisheye-Streckeffekt fuer die vier grossen
+                // Title-Bereiche - separat vom Blur/Brightness/Opacity-Fade oben, wirkt nur
+                // auf den inneren Text (nicht auf die ganze Sektion/das Hero-Foto).
+                if (el === introTitleEl) {
+                    applyLensWarp(introTitleTextEl, lensDispTitleEl, "url(#lens-warp-title)", prog, r.height);
+                } else if (el === introQuoteEl) {
+                    applyLensWarp(introQuoteTextEl, lensDispQuoteEl, "url(#lens-warp-quote)", prog, r.height);
+                } else if (el === introFollowupEl) {
+                    applyLensWarp(introFollowupTextEl, lensDispFollowupEl, "url(#lens-warp-followup)", prog, r.height);
+                } else if (el === heroEl) {
+                    applyLensWarp(heroNameEl, lensDispHeroEl, "url(#lens-warp-hero)", prog, r.height);
                 }
             }
             if (el === heroEl) {

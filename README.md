@@ -245,6 +245,31 @@ oben. Dieses Log reicht zurück bis zum Beginn des Projekts (übernommen aus `be
 bis zum Einfrieren am 2026-08-19 weitergeführt wurde) — **ab dem 2026-08-19 ist dies der
 aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
 
+### 2026-08-26 (Illustration inline-027 aus Gallery-Slider entfernt, beide Slider durchgemischt)
+- Rauch-/Wolken-Tattoo-Illustration (inline-027.webp) auf Nics Wunsch (Screenshot)
+  komplett aus GALLERY_IMAGES entfernt. Bilddatei bleibt im img/inline/ Ordner liegen,
+  nur aus dem Array raus.
+- GALLERY_IMAGES und GALLERY_IMAGES_PHOTOS ("beide Slider") waren streng numerisch
+  sortiert (002, 003, 004...) - jetzt durchgemischt fuer mehr Abwechslung beim
+  Durchscrollen.
+- Ausnahme vom "nur noch /creative"-Hinweis: explizit auf allen 3 Versionen
+  (live/creative/bewerbung) gemacht, wie von Nic bestaetigt.
+
+### 2026-08-26 (Bug-Fix: Fade-Gate nach Pretitle-Ergaenzung + Lens-/Streckeffekt)
+- Bug-Fix (von Nic gemeldet: "beim Hochscrollen zurueck ist der oberste Bereich fast
+  ausgefadet"): die neue Pretitle-Sektion aus dem vorherigen Commit hatte die Anzahl der
+  100vh-Screens vor #lorem-section von 4 auf 5 erhoeht, das darauf abgestimmte Fade-Gate
+  (vh*5) griff dadurch beim Zurueckscrollen zum Seitenanfang zu frueh und liess Pretitle/
+  Titel auf ihrem zuletzt gesetzten (fast unsichtbaren) Zustand haengen. Gate auf vh*6
+  angepasst.
+- Neuer Lens-/Fisheye-Streckeffekt fuer die vier grossen Title-Bereiche (Digital-Designer-
+  Zeile, Zitat, Folge-Screen, Hero-Name): beim Wegscrollen nach oben zieht sich die
+  Schrift zunehmend vertikal in die Laenge (staerker im oberen Bereich, am staerksten
+  kurz vor dem Verschwinden), simuliert per SVG feDisplacementMap (kein einfaches
+  scaleY) - siehe applyLensWarp() und die SVG-Filter-Defs direkt im <body>. Der
+  bestehende Blur/Brightness/Opacity-Fade bleibt unveraendert erhalten, der neue Effekt
+  wirkt separat nur auf den inneren Text.
+
 ### 2026-08-26 (Intro-Sequenz auf Englisch umgetextet)
 - Neue, vierte Intro-Sektion ergaenzt ("intro-pretitle") mit kleiner Vorzeile
   "you're looking for an" - vor der riesigen Titelzeile.
