@@ -245,6 +245,13 @@ oben. Dieses Log reicht zurück bis zum Beginn des Projekts (übernommen aus `be
 bis zum Einfrieren am 2026-08-19 weitergeführt wurde) — **ab dem 2026-08-19 ist dies der
 aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
 
+### 2026-08-26 (Vita-Zeitleiste: Zeitraeume korrigiert, neuer Eintrag formwandler interactive)
+- Hylax-Eintrag von "seit 10.2021" auf "10.2021 - 04.2023" praezisiert.
+- Fellbox-Eintrag hatte faelschlich ebenfalls "seit 10.2021" stehen - korrigiert zu
+  "04.2023 - 04.2024", Titel erweitert zu "Wechsel zu Fellbox - Web- und Grafikdesign".
+- Neuer Vita-Punkt ergaenzt: "seit 08.2024 - Web- und Grafikdesigner bei formwandler
+  interactive".
+
 ### 2026-08-26 (Google Consent Mode v2 eingebunden)
 - Neues Script direkt nach dem `charset`-Meta-Tag (praktisch erstes Script im `<head>`),
   das sofort beim Laden alle Speicherkategorien auf "denied" setzt (ausser
