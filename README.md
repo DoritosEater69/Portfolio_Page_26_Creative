@@ -245,6 +245,13 @@ oben. Dieses Log reicht zurück bis zum Beginn des Projekts (übernommen aus `be
 bis zum Einfrieren am 2026-08-19 weitergeführt wurde) — **ab dem 2026-08-19 ist dies der
 aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
 
+### 2026-08-26 (Favicon aus dem "N"-Logo eingebunden)
+- Bisheriges Inline-SVG-Favicon (Platzhalter "NK"-Text auf schwarzem Rechteck) ersetzt durch
+  ein richtiges Favicon-Set aus dem von Nic gelieferten "N"-Logo (Amber auf Schwarz):
+  `favicon.ico` (16/32/48px) im Ordner-Root, PNGs in 16, 32, 192, 512px sowie ein
+  `apple-touch-icon.png` (180px) in `img/`. Entsprechende `<link rel="icon">`-/
+  `apple-touch-icon`-Tags im `<head>` ergänzt.
+
 ### 2026-08-03 (Cookie-Consent-CDN: Subresource Integrity nachgezogen)
 - Die beiden jsDelivr-Includes der `vanilla-cookieconsent`-Library (`cookieconsent.css` im
   `<head>`, `cookieconsent.umd.js` am Ende von `<body>`) hatten bisher KEIN `integrity=`-Attribut -
