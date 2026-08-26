@@ -255,6 +255,23 @@ aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
 - Ausnahme vom "nur noch /creative"-Hinweis: explizit auf allen 3 Versionen
   (live/creative/bewerbung) gemacht, wie von Nic bestaetigt.
 
+### 2026-08-26 (Lens-Effekt: Bug in SVG-Filter behoben, war komplett unsichtbar)
+- Nic meldete: Effekt aus dem vorherigen Commit war gar nicht sichtbar.
+- Ursache gefunden: die feImage-Kindelemente hatten x/y/width/height als Prozentwerte
+  ("100%") gesetzt, aber ohne primitiveUnits-Angabe gilt fuer Filter-Kindelemente
+  standardmaessig userSpaceOnUse (absolute Nutzereinheiten), nicht objectBoundingBox -
+  "100%" wurde dadurch nicht wie gewollt interpretiert, die Verlaufsflaeche kam nie
+  korrekt an, feDisplacementMap hatte effektiv keine gueltige Map und der Filter blieb
+  wirkungslos.
+- Fix: primitiveUnits="objectBoundingBox" explizit auf jedem <filter> gesetzt, feImage
+  jetzt mit klaren Bruchwerten (0/1 statt Prozent-Strings) referenziert. Ausserdem die
+  Verlaufsflaeche von einer lokalen SVG-Referenz (fragil je nach Browser) auf ein
+  eingebettetes Daten-URI-PNG umgestellt - robuster, keine Abhaengigkeit von
+  Fragment-Referenzen auf Elemente in <defs>.
+- Konnte den Effekt selbst nicht per Chrome gegenpruefen (kein Zugriff auf lokale
+  Dateien im Browser aus dieser Umgebung heraus) - Nic muss visuell bestaetigen, ob es
+  jetzt sichtbar ist.
+
 ### 2026-08-26 (Bug-Fix: Fade-Gate nach Pretitle-Ergaenzung + Lens-/Streckeffekt)
 - Bug-Fix (von Nic gemeldet: "beim Hochscrollen zurueck ist der oberste Bereich fast
   ausgefadet"): die neue Pretitle-Sektion aus dem vorherigen Commit hatte die Anzahl der

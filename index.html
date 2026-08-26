@@ -1982,28 +1982,20 @@
      (dieselbe prog-Berechnung wie der bestehende Blur/Fade) gekoppelt, siehe applyLensWarp(). -->
 <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true" focusable="false">
   <defs>
-    <linearGradient id="lens-map-gradient" x1="0" y1="1" x2="0" y2="0">
-      <stop offset="0%"  stop-color="#808000"/>
-      <stop offset="42%" stop-color="#808000"/>
-      <stop offset="62%" stop-color="#5c5000"/>
-      <stop offset="80%" stop-color="#302800"/>
-      <stop offset="100%" stop-color="#000000"/>
-    </linearGradient>
-    <rect id="lens-map-rect" x="0" y="0" width="10" height="100" fill="url(#lens-map-gradient)"/>
-    <filter id="lens-warp-title" x="-50%" y="-250%" width="200%" height="400%" color-interpolation-filters="sRGB">
-      <feImage xlink:href="#lens-map-rect" href="#lens-map-rect" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" result="lensmap"/>
+    <filter id="lens-warp-title" primitiveUnits="objectBoundingBox" x="-0.5" y="-2.5" width="2" height="4" color-interpolation-filters="sRGB">
+      <feImage href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAEACAIAAAAWazDMAAAARUlEQVR4nO2LQQ4AIAjDCvHhPt0PEIKyxAunZltnG4CFR7BkK5jZ3W7v0qQpC1td+QKHjhJu0lKaXpWsbG51RfobDAbAAb/yA8oGUHF8AAAAAElFTkSuQmCC" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="lensmap"/>
       <feDisplacementMap id="lens-disp-title" in="SourceGraphic" in2="lensmap" scale="0" xChannelSelector="R" yChannelSelector="G"/>
     </filter>
-    <filter id="lens-warp-quote" x="-50%" y="-250%" width="200%" height="400%" color-interpolation-filters="sRGB">
-      <feImage xlink:href="#lens-map-rect" href="#lens-map-rect" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" result="lensmap"/>
+    <filter id="lens-warp-quote" primitiveUnits="objectBoundingBox" x="-0.5" y="-2.5" width="2" height="4" color-interpolation-filters="sRGB">
+      <feImage href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAEACAIAAAAWazDMAAAARUlEQVR4nO2LQQ4AIAjDCvHhPt0PEIKyxAunZltnG4CFR7BkK5jZ3W7v0qQpC1td+QKHjhJu0lKaXpWsbG51RfobDAbAAb/yA8oGUHF8AAAAAElFTkSuQmCC" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="lensmap"/>
       <feDisplacementMap id="lens-disp-quote" in="SourceGraphic" in2="lensmap" scale="0" xChannelSelector="R" yChannelSelector="G"/>
     </filter>
-    <filter id="lens-warp-followup" x="-50%" y="-250%" width="200%" height="400%" color-interpolation-filters="sRGB">
-      <feImage xlink:href="#lens-map-rect" href="#lens-map-rect" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" result="lensmap"/>
+    <filter id="lens-warp-followup" primitiveUnits="objectBoundingBox" x="-0.5" y="-2.5" width="2" height="4" color-interpolation-filters="sRGB">
+      <feImage href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAEACAIAAAAWazDMAAAARUlEQVR4nO2LQQ4AIAjDCvHhPt0PEIKyxAunZltnG4CFR7BkK5jZ3W7v0qQpC1td+QKHjhJu0lKaXpWsbG51RfobDAbAAb/yA8oGUHF8AAAAAElFTkSuQmCC" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="lensmap"/>
       <feDisplacementMap id="lens-disp-followup" in="SourceGraphic" in2="lensmap" scale="0" xChannelSelector="R" yChannelSelector="G"/>
     </filter>
-    <filter id="lens-warp-hero" x="-50%" y="-250%" width="200%" height="400%" color-interpolation-filters="sRGB">
-      <feImage xlink:href="#lens-map-rect" href="#lens-map-rect" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" result="lensmap"/>
+    <filter id="lens-warp-hero" primitiveUnits="objectBoundingBox" x="-0.5" y="-2.5" width="2" height="4" color-interpolation-filters="sRGB">
+      <feImage href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAEACAIAAAAWazDMAAAARUlEQVR4nO2LQQ4AIAjDCvHhPt0PEIKyxAunZltnG4CFR7BkK5jZ3W7v0qQpC1td+QKHjhJu0lKaXpWsbG51RfobDAbAAb/yA8oGUHF8AAAAAElFTkSuQmCC" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="lensmap"/>
       <feDisplacementMap id="lens-disp-hero" in="SourceGraphic" in2="lensmap" scale="0" xChannelSelector="R" yChannelSelector="G"/>
     </filter>
   </defs>
