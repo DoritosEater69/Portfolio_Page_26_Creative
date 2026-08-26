@@ -245,6 +245,33 @@ oben. Dieses Log reicht zurück bis zum Beginn des Projekts (übernommen aus `be
 bis zum Einfrieren am 2026-08-19 weitergeführt wurde) — **ab dem 2026-08-19 ist dies der
 aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
 
+### 2026-08-26 (3) (Lens-/Fisheye-Effekt komplett neu: Canvas-Rasterung statt SVG-Filter)
+- Root-Cause fuer "Effekt greift 0" gefunden: `applyLensWarp()` wurde in `updateOnScroll()`
+  vier Mal aufgerufen, war aber nirgends im Script definiert - ebenso `lensDispTitleEl`,
+  `lensDispQuoteEl`, `lensDispFollowupEl`, `lensDispHeroEl` und `introTitleTextEl`. Jeder
+  Scroll-Frame warf dadurch einen stillen `ReferenceError`, der Effekt war seit dem ersten
+  "Fix"-Commit nie tatsaechlich aktiv.
+- Auf Nics Vorschlag ("Schrift rastern") komplett neu aufgebaut: der alte SVG-
+  feDisplacementMap-Ansatz (inkl. Filter-Defs mit Base64-PNG-Verlauf) ist raus. Neu: `LensFX`
+  (Script) rendert den jeweiligen Text live auf ein Canvas und verzerrt ihn per Streifen-Warp
+  - viele duenne horizontale Streifen, Richtung oben zunehmend mehr Vertikal-Streckung UND
+  wellenfoermiger Horizontal-Versatz. Ergibt eine fliessende, organische Liquify-/Fisheye-
+  Optik (angelehnt an Nics Referenzbild "PLEASE DON'T KILL MY VIBE" / Fisheye Text Effect,
+  nur ohne die bunten Farben) statt der vorherigen gleichmaessigen Streckung.
+- Betrifft weiterhin dieselben vier Bereiche, jetzt pro Wort/Textlaeufer statt pro Sektion:
+  Title-Woerter "DIGITAL"/"DESIGNER?", Zitat-Highlight "well.. here i am?" (Hintergrund +
+  Unterstrich werden mit ins Canvas gerendert, da zu diesem Zeitpunkt im Scroll-Verlauf
+  ohnehin schon fertig), Folge-Screen "...wanna join me?", Hero-Name "NICLAS"/"KOCH".
+- Original bleibt als echter Text im DOM (SEO/A11y unveraendert), wird beim Verzerren nur per
+  Opacity ausgeblendet waehrend das Canvas sich einblendet - nahtloser Crossfade.
+- Verifiziert diesmal per Node-Simulation mit DOM-Stubs (Canvas-Kontext, getComputedStyle
+  etc.) ueber einen kompletten Scroll-Sweep (prog 0 -> 1 -> 0, inkl. Grenzwerte) - lief ohne
+  Laufzeitfehler, keine NaN/Infinity in den drawImage-Aufrufen. Das haette den urspruenglichen
+  Bug sofort gefunden. **Trotzdem weiterhin nicht im echten Browser visuell gegengeprueft**
+  (lokaler Preview-Server bleibt fuer das verbundene Chrome-Plugin unerreichbar) - bitte
+  testen und Rueckmeldung geben, v.a. ob die Verzerrung stark/liquify-artig genug wirkt.
+- Nur in `creative/` (Standardregel "nur noch /creative").
+
 ### 2026-08-26 (Scroll-gekoppelter Unterstrich unter "well.. here i am?" mit Scroll-Gate)
 - "well.. here i am?" bekommt einen an die Scrollposition gekoppelten Unterstrich, der
   von 0% auf 100% waechst. Erst wenn er vollstaendig ist, laesst sich die Sektion normal

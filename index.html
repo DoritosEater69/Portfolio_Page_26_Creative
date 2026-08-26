@@ -730,6 +730,15 @@
     width: calc(var(--underline-progress, 0) * 100%);
     background:#12100D;
   }
+  /* 2026-08-26 (3) Nic: Canvas-Overlay fuer den neuen (Canvas-basierten) Lens-/Fisheye-
+     Liquify-Effekt - siehe LensFX im Script. Haengt an der Boden-Mitte des jeweiligen
+     Text-Elements (dessen position wird von LensFX zur Laufzeit auf relative gesetzt, falls
+     noch static), waechst beim Verzerren nach oben/seitlich ueber die urspruengliche Box
+     hinaus. */
+  .lens-canvas{
+    position:absolute; left:50%; bottom:0; transform:translateX(-50%);
+    pointer-events:none; opacity:0;
+  }
   .intro-followup-text{
     font-family:'Assignate', 'Fraunces', serif; font-weight:900; font-style:normal;
     font-size: clamp(calc(var(--fs-scale, 1) * 30px), calc(var(--fs-scale, 1) * 6.5vw), calc(var(--fs-scale, 1) * 80px));
@@ -1998,34 +2007,12 @@
 </head>
 <body class="intro-active">
 
-<!-- 2026-08-26 Nic: SVG-Filter-Defs fuer den Lens-/Fisheye-Streckeffekt der vier grossen
-     Title-Bereiche (Digital-Designer-Zeile, Zitat, Folge-Screen, Hero-Name). Rein visuell,
-     width/height=0 damit nichts vom sichtbaren Layout belegt wird. Die feDisplacementMap
-     verschiebt Pixel anhand des Gruenkanals einer vertikalen Verlaufsflaeche (unten=kein
-     Versatz, nach oben zunehmend staerker, ab ca. 62% Hoehe beschleunigt) - simuliert eine
-     Schrift, die ueber eine gewoelbte Glaslinse gezogen wird, statt eines gleichmaessigen
-     scaleY(). scale-Attribut jedes feDisplacementMap wird per JS live an die Scroll-Position
-     (dieselbe prog-Berechnung wie der bestehende Blur/Fade) gekoppelt, siehe applyLensWarp(). -->
-<svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true" focusable="false">
-  <defs>
-    <filter id="lens-warp-title" primitiveUnits="objectBoundingBox" x="-0.5" y="-2.5" width="2" height="4" color-interpolation-filters="sRGB">
-      <feImage href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAEACAIAAAAWazDMAAAARUlEQVR4nO2LQQ4AIAjDCvHhPt0PEIKyxAunZltnG4CFR7BkK5jZ3W7v0qQpC1td+QKHjhJu0lKaXpWsbG51RfobDAbAAb/yA8oGUHF8AAAAAElFTkSuQmCC" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="lensmap"/>
-      <feDisplacementMap id="lens-disp-title" in="SourceGraphic" in2="lensmap" scale="0" xChannelSelector="R" yChannelSelector="G"/>
-    </filter>
-    <filter id="lens-warp-quote" primitiveUnits="objectBoundingBox" x="-0.5" y="-2.5" width="2" height="4" color-interpolation-filters="sRGB">
-      <feImage href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAEACAIAAAAWazDMAAAARUlEQVR4nO2LQQ4AIAjDCvHhPt0PEIKyxAunZltnG4CFR7BkK5jZ3W7v0qQpC1td+QKHjhJu0lKaXpWsbG51RfobDAbAAb/yA8oGUHF8AAAAAElFTkSuQmCC" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="lensmap"/>
-      <feDisplacementMap id="lens-disp-quote" in="SourceGraphic" in2="lensmap" scale="0" xChannelSelector="R" yChannelSelector="G"/>
-    </filter>
-    <filter id="lens-warp-followup" primitiveUnits="objectBoundingBox" x="-0.5" y="-2.5" width="2" height="4" color-interpolation-filters="sRGB">
-      <feImage href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAEACAIAAAAWazDMAAAARUlEQVR4nO2LQQ4AIAjDCvHhPt0PEIKyxAunZltnG4CFR7BkK5jZ3W7v0qQpC1td+QKHjhJu0lKaXpWsbG51RfobDAbAAb/yA8oGUHF8AAAAAElFTkSuQmCC" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="lensmap"/>
-      <feDisplacementMap id="lens-disp-followup" in="SourceGraphic" in2="lensmap" scale="0" xChannelSelector="R" yChannelSelector="G"/>
-    </filter>
-    <filter id="lens-warp-hero" primitiveUnits="objectBoundingBox" x="-0.5" y="-2.5" width="2" height="4" color-interpolation-filters="sRGB">
-      <feImage href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAEACAIAAAAWazDMAAAARUlEQVR4nO2LQQ4AIAjDCvHhPt0PEIKyxAunZltnG4CFR7BkK5jZ3W7v0qQpC1td+QKHjhJu0lKaXpWsbG51RfobDAbAAb/yA8oGUHF8AAAAAElFTkSuQmCC" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="lensmap"/>
-      <feDisplacementMap id="lens-disp-hero" in="SourceGraphic" in2="lensmap" scale="0" xChannelSelector="R" yChannelSelector="G"/>
-    </filter>
-  </defs>
-</svg>
+<!-- 2026-08-26 (3) Nic: SVG-Filter-Ansatz fuer den Lens-/Fisheye-Effekt entfernt - hat nie
+     funktioniert (applyLensWarp() wurde aufgerufen, war aber nirgends definiert -> jeder
+     Scroll-Frame warf einen stillen ReferenceError, Effekt blieb komplett unsichtbar). Neuer
+     Ansatz auf Nics Vorschlag ("Schrift rastern"): Text wird live auf Canvas gezeichnet und
+     per Streifen-Warp verzerrt statt per SVG-feDisplacementMap - siehe LensFX weiter unten
+     im Script. -->
 
 <div id="intro-overlay"><div id="intro-cursor"></div></div>
 <div id="spotlight"></div>
@@ -6272,6 +6259,137 @@ function skipEmbedTrack() {
 
 embedSkipBtn.addEventListener("click", skipEmbedTrack);
 
+const introTitleSpans = document.querySelectorAll(".intro-title-text span");
+
+const heroNameSpans = heroNameEl.querySelectorAll("span");
+
+// 2026-08-26 (3) Nic: Fisheye-/Liquify-Verzerrung neu aufgebaut - der vorherige SVG-
+// feDisplacementMap-Ansatz hat nie funktioniert (applyLensWarp() war nie definiert). Auf
+// Nics Vorschlag ("Schrift rastern") wird der Text jetzt live auf ein Canvas gezeichnet und
+// per Streifen-Warp verzerrt: das Quelltext-Canvas wird in duenne horizontale Streifen
+// zerlegt, jeder Streifen bekommt Richtung oben zunehmend mehr Vertikal-Streckung UND einen
+// wellenfoermigen Horizontal-Versatz - das ergibt eine fliessende, organische Liquify-Optik
+// (wie eine Schrift, die ueber eine gewoelbte Glaslinse gezogen wird) statt einer
+// gleichmaessigen scaleY(). Das Original bleibt als echter Text im DOM (SEO/A11y
+// unveraendert) und wird beim Verzerren nur per Opacity ausgeblendet, das Canvas blendet
+// sich im Gegenzug ein.
+const LensFX = (() => {
+    const STRIPS = 36;
+    const MAX_STRETCH = 2.3;
+    const MAX_WAVE = 0.22;
+    const DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+    function ensure(el) {
+        if (el._lensState) return el._lensState;
+        if (getComputedStyle(el).position === "static") el.style.position = "relative";
+        const text = el.textContent;
+        el.textContent = "";
+        const srcSpan = document.createElement("span");
+        srcSpan.className = "lens-src-text";
+        srcSpan.textContent = text;
+        el.appendChild(srcSpan);
+        const canvas = document.createElement("canvas");
+        canvas.className = "lens-canvas";
+        canvas.setAttribute("aria-hidden", "true");
+        el.appendChild(canvas);
+        const state = {
+            canvas, ctx: canvas.getContext("2d"), srcSpan,
+            sig: "", raster: null, rw: 0, rh: 0, destW: 0, destH: 0, _lastEased: -1
+        };
+        el._lensState = state;
+        return state;
+    }
+
+    function buildRaster(el, state, opts) {
+        const rect = el.getBoundingClientRect();
+        const cs = getComputedStyle(el);
+        const w = Math.max(1, Math.round(rect.width));
+        const h = Math.max(1, Math.round(rect.height));
+        const sig = `${cs.font}|${cs.color}|${el.textContent}|${w}x${h}`;
+        if (state.sig === sig && state.raster) return;
+        state.sig = sig;
+        state.rw = w;
+        state.rh = h;
+        const src = document.createElement("canvas");
+        src.width = Math.max(1, Math.round(w * DPR));
+        src.height = Math.max(1, Math.round(h * DPR));
+        const sctx = src.getContext("2d");
+        sctx.scale(DPR, DPR);
+        if (opts && opts.bg) {
+            sctx.fillStyle = opts.bg;
+            sctx.fillRect(0, 0, w, h);
+        }
+        if (opts && opts.underline) {
+            sctx.fillStyle = cs.color;
+            const uH = Math.max(2, h * 0.03);
+            sctx.fillRect(0, h - uH - h * 0.08, w, uH);
+        }
+        sctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize}/${cs.lineHeight} ${cs.fontFamily}`;
+        sctx.fillStyle = cs.color;
+        sctx.textBaseline = "alphabetic";
+        sctx.textAlign = "left";
+        // Grobe Baseline-Annaeherung (Ascent ca. 80% der line-height) - reicht fuer diesen
+        // rein dekorativen Warp-Effekt, muss nicht pixelgenau sein.
+        sctx.fillText(el.textContent, 0, h * 0.8);
+        state.raster = src;
+
+        const destW = Math.ceil(w * (1 + MAX_WAVE * 2.4));
+        const destH = Math.ceil(h * (1 + (MAX_STRETCH - 1) * 1.1));
+        state.destW = destW;
+        state.destH = destH;
+        state.canvas.width = Math.round(destW * DPR);
+        state.canvas.height = Math.round(destH * DPR);
+        state.canvas.style.width = destW + "px";
+        state.canvas.style.height = destH + "px";
+    }
+
+    function draw(state, eased) {
+        const ctx = state.ctx;
+        const destW = state.destW, destH = state.destH;
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        ctx.clearRect(0, 0, destW, destH);
+        const w = state.rw, h = state.rh;
+        const stripH = h / STRIPS;
+        const baseX = (destW - w) / 2;
+        let cursorFromBottom = 0;
+        for (let k = STRIPS - 1; k >= 0; k--) {
+            const rowFracBottom = (STRIPS - 1 - k) / (STRIPS - 1);
+            const localAmt = eased * Math.pow(rowFracBottom, 1.6);
+            const stretch = 1 + localAmt * (MAX_STRETCH - 1);
+            const dh = stripH * stretch;
+            const wave = MAX_WAVE * w * localAmt *
+                (0.6 * Math.sin(rowFracBottom * 5.5 + 0.6) + 0.4 * Math.sin(rowFracBottom * 2.1));
+            const dy = destH - cursorFromBottom - dh;
+            ctx.drawImage(
+                state.raster,
+                0, k * stripH * DPR, w * DPR, stripH * DPR,
+                baseX + wave, dy, w, dh
+            );
+            cursorFromBottom += dh;
+        }
+    }
+
+    function update(el, prog, opts) {
+        if (!el) return;
+        const state = ensure(el);
+        const eased = Math.pow(Math.max(0, Math.min(1, prog)), 1.2);
+        if (state._lastEased === eased) return;
+        state._lastEased = eased;
+        if (eased < 0.008) {
+            state.canvas.style.opacity = "0";
+            state.srcSpan.style.opacity = "1";
+            return;
+        }
+        buildRaster(el, state, opts);
+        draw(state, eased);
+        const canvasOpacity = Math.min(1, eased * 5);
+        state.canvas.style.opacity = String(canvasOpacity);
+        state.srcSpan.style.opacity = String(Math.max(0, 1 - canvasOpacity));
+    }
+
+    return { update };
+})();
+
 function updateOnScroll() {
     const vh = window.innerHeight;
     const loremRect = loremSection.getBoundingClientRect();
@@ -6316,17 +6434,21 @@ function updateOnScroll() {
                     el.style.filter = `blur(${prog * 10}px) brightness(${1 - prog})`;
                     el.style.opacity = String(1 - prog);
                 }
-                // 2026-08-26 Nic: Lens-/Fisheye-Streckeffekt fuer die vier grossen
+                // 2026-08-26 (3) Nic: Lens-/Fisheye-Liquify-Effekt fuer die vier grossen
                 // Title-Bereiche - separat vom Blur/Brightness/Opacity-Fade oben, wirkt nur
-                // auf den inneren Text (nicht auf die ganze Sektion/das Hero-Foto).
+                // auf den inneren Text (nicht auf die ganze Sektion/das Hero-Foto). Siehe
+                // LensFX oben im Script (Canvas-basiert statt SVG-Filter).
                 if (el === introTitleEl) {
-                    applyLensWarp(introTitleTextEl, lensDispTitleEl, "url(#lens-warp-title)", prog, r.height);
+                    introTitleSpans.forEach(s => LensFX.update(s, prog));
                 } else if (el === introQuoteEl) {
-                    applyLensWarp(introQuoteTextEl, lensDispQuoteEl, "url(#lens-warp-quote)", prog, r.height);
+                    LensFX.update(introQuoteHighlightEl, prog, {
+                        bg: getComputedStyle(introQuoteHighlightEl).backgroundColor,
+                        underline: true
+                    });
                 } else if (el === introFollowupEl) {
-                    applyLensWarp(introFollowupTextEl, lensDispFollowupEl, "url(#lens-warp-followup)", prog, r.height);
+                    LensFX.update(introFollowupTextEl, prog);
                 } else if (el === heroEl) {
-                    applyLensWarp(heroNameEl, lensDispHeroEl, "url(#lens-warp-hero)", prog, r.height);
+                    heroNameSpans.forEach(s => LensFX.update(s, prog));
                 }
             }
             if (el === heroEl) {
