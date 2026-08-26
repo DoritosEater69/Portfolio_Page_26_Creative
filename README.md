@@ -1,61 +1,24 @@
-# Portfolio-Seite — Niclas Koch
+# Portfolio-Seite — Niclas Koch (creative/)
 
-## 🟢 AKTIVER ARBEITSORDNER seit 2026-08-19 — `creative/`
+## 🟢 AKTIVER ARBEITSORDNER seit 2026-08-19
 
-Dies ist der aktuelle Arbeitsordner für die neue Version der Portfolio-Seite. Alle
-Änderungen ab dem 2026-08-19 landen ausschließlich hier. Die Geschwister-Ordner
-`../bewerbung/` und `../live/` sind eingefroren (Stand 2026-08-19) und werden nicht mehr
-bearbeitet — `creative/` wurde 1:1 aus `bewerbung/` kopiert (ohne dessen Git-Historie,
-eigenes frisches lokales Git-Repo, noch ohne Remote) und ist der neue Ausgangspunkt.
+Dies ist der aktuelle Arbeitsordner für die neue Version der Portfolio-Seite. **Alle
+Änderungen ab dem 2026-08-19 landen ausschließlich hier.** `creative/` wurde 1:1 aus
+`../bewerbung/` kopiert (Stand 2026-08-19, ohne dessen Git-Historie, eigenes frisches
+lokales Git-Repo) und ist der neue Ausgangspunkt für alles Weitere.
 
-Der Abschnitt "ZWEI ORDNER, EINE QUELLE DER WAHRHEIT" unten beschreibt den historischen
-`bewerbung/`/`live/`-Workflow (Build-Script `build-live.js`, `build-bewerbung-dist.js` usw.)
-— die Mechanik gilt technisch unverändert auch hier in `creative/`, nur eben bezogen auf
-diesen Ordner statt auf `bewerbung/`/`live/`. Sobald sich die Zielstruktur für `creative/`
-ändert (z. B. eigene Domain/Deploy-Ziel), wird dieser Abschnitt aktualisiert.
+Die Geschwister-Ordner `../bewerbung/` und `../live/` sind seit demselben Datum
+eingefroren und werden nicht mehr bearbeitet — jeder hat inzwischen ein eigenes Git-Repo
+und ein eigenes, kürzeres README mit historischen Details zum jeweiligen Ordner
+(`../bewerbung/README.md`, `../live/README.md`). Der historische Zusammenhang in Kurzform:
+`bewerbung/` war die passwortgeschützte Vollversion für Bewerbungslinks,
+`live/` wurde automatisch daraus per `node build-live.js` als öffentliche, SEO-indexierte
+Variante ohne Webprojekte-Slider/Fellbox generiert. Dieser Build-Mechanismus ist mit dem
+Einfrieren beider Ordner pausiert; ob/wie `creative/` künftig eine ähnliche
+öffentlich/privat-Aufteilung bekommt, ist noch offen (siehe Domain-Notiz unten).
 
-## ZWEI ORDNER, EINE QUELLE DER WAHRHEIT (seit 2026-08-06, historisch — siehe oben)
-
-Es gibt lokal zwei Geschwister-Ordner:
-
-- **`bewerbung/`** — DIE Quelle der Wahrheit. Jede Design-, Struktur- oder Inhalts-Änderung
-  wird ausschließlich hier gemacht. Passwortgeschützt (`.htaccess` Basic Auth), `noindex,
-  nofollow`, zeigt ALLE Projekte inkl. Webprojekte-Slider und Fellbox — für gezielt
-  verschickte Bewerbungslinks.
-- **`live/`** — wird NIE von Hand bearbeitet. Wird komplett automatisch aus `bewerbung/`
-  erzeugt durch `node build-live.js` (liegt in `bewerbung/`). Unterschiede zur bewerbung-Version:
-  Webprojekte-Slider + Fellbox-Grafikprojekt ausgeblendet, `index, follow` statt `noindex`,
-  Domain überall auf `nicworks.de` statt `bewerbung.nicworks.de`, kein Passwortschutz.
-
-**Workflow bei JEDER Änderung:** in `bewerbung/index.html` (bzw. der jeweiligen Datei)
-ändern → `cd bewerbung && node build-live.js` laufen lassen → beide Ordner sind synchron.
-Das Script ist idempotent und überschreibt `live/` bei jedem Lauf komplett neu, es muss vor
-jedem Deploy/Push von `live/` einmal ausgeführt werden.
-
-## ZIEL-STRUKTUR (Domains)
-
-| Subdomain | Inhalt | Status |
-|---|---|---|
-| `cms.nicworks.de` | WordPress (läuft aktuell noch auf `nicworks.de` Root) | offen |
-| `bewerbung.nicworks.de` | Inhalt von `bewerbung/` - passwortgeschützt + `noindex` - für gezielt verschickte Bewerbungslinks | in Arbeit |
-| `nicworks.de` (Root) | Inhalt von `live/` - öffentlich, indexierbar, SEO-optimiert, ohne Webprojekte/Fellbox | in Arbeit |
-
-### To-dos dahin (in dieser Reihenfolge)
-
-1. **`bewerbung.nicworks.de` fertig live bringen** (aktuell in Arbeit, siehe Hotfix-Log unten):
-   - SSL-Zertifikat der Subdomain zuweisen
-   - `.htpasswd` fertigstellen (Serverpfad + Zugangsdaten von Nic ausstehend)
-   - Inhalt von `bewerbung/` (`index.html` + `img/` + `font/` + `.htaccess` + `robots.txt` +
-     `sitemap.xml` + `impressum.html`/`datenschutz.html`) per SFTP/File-Manager hochladen
-2. **WordPress-Umzug `nicworks.de` → `cms.nicworks.de`** - erst NACH Schritt 1, um die aktuell
-   laufende WP-Seite nicht zu gefährden:
-   - Subdomain `cms.nicworks.de` bei Strato anlegen
-   - WordPress-Dateien dorthin verschieben bzw. Subdomain auf den bestehenden WP-Ordner mappen
-   - DNS/SSL für die neue Subdomain prüfen (gleiches Prozedere wie bei `bewerbung` diese Session)
-3. **`live/`-Ordner ist bereits fertig** (automatisch generiert, siehe oben) - nichts mehr
-   von Hand zu tun, nur bei jeder Änderung `node build-live.js` erneut laufen lassen.
-4. **Root-Verzeichnis von `nicworks.de` mit dem Inhalt von `live/` belegen**, sobald WordPress
-   erfolgreich auf `cms.nicworks.de` läuft.
+**Git:** eigenes Repo, Origin `Portfolio_Page_26_Creative` =
+`https://github.com/DoritosEater69/Portfolio_Page_26_Creative`, Branch `master`.
 
 Persönliche Portfolio-/Landingpage von Niclas Koch (Web- & Grafikdesigner). Eine einzige,
 selbstständige HTML-Datei ohne Build-Step, Framework oder Page-Builder.
@@ -65,8 +28,8 @@ selbstständige HTML-Datei ohne Build-Step, Framework oder Page-Builder.
 ## Tech-Stack
 
 - **Sprachen:** reines HTML, CSS und JavaScript — alles in einer Datei (`index.html`),
-  kein Framework, kein Bundler, kein Build-Step (Ausnahme: `build-live.js` generiert daraus
-  die `live/`-Variante, siehe oben).
+  kein Framework, kein Bundler, kein Build-Step (Ausnahme: `build-live.js`, historisch für
+  die `bewerbung/`/`live/`-Aufteilung genutzt, liegt weiterhin im Ordner, siehe oben).
 - **Bilder:** als Base64 direkt eingebettet, liegen zusätzlich als Rohdateien in `img/`.
 - **Custom Smooth-Scroll-Engine:** eigener `requestAnimationFrame`-Loop statt CSS
   `scroll-behavior` — steuert u. a. Scroll-Ease, Reveal-Animationen, Parallax- und
@@ -113,6 +76,24 @@ Portfolio Page/
     └── misc/                       # unsortierte/nicht eindeutig zuordenbare Altdateien
 ```
 
+## Domain-/Deploy-Notiz (offen)
+
+Zum Zeitpunkt des Einfrierens von `bewerbung/`/`live/` gab es folgende Domain-Roadmap, die
+nicht abgeschlossen wurde — vollständige Details siehe `../bewerbung/README.md`:
+
+| Subdomain | Inhalt (historisch geplant) | Status |
+|---|---|---|
+| `cms.nicworks.de` | WordPress (läuft aktuell noch auf `nicworks.de` Root) | offen |
+| `bewerbung.nicworks.de` | Inhalt von `bewerbung/` | in Arbeit |
+| `nicworks.de` (Root) | Inhalt von `live/` | in Arbeit |
+
+Da `creative/` ab jetzt die aktive Weiterentwicklung übernimmt, ist offen, ob/wie diese
+Roadmap für `creative/` weiterverfolgt wird (z. B. eigene Subdomain statt `bewerbung/`/
+`live/`, oder `creative/` löst eine der beiden bestehenden Varianten ab). **Offene
+Rückfrage an Nic:** Soll die Domain-Struktur wie oben umgesetzt werden, aber bezogen auf
+`creative/` statt `bewerbung/`/`live/` — oder ändert sich der Plan grundsätzlich, sobald
+`creative/` bereit für den Live-Gang ist?
+
 ## Geplant: zwei Versionen der Seite (öffentlich + versteckt)
 
 Idee von Nic (2026-07-27), noch nicht umgesetzt — nur als Plan festgehalten, bis Inhalte/
@@ -149,11 +130,15 @@ festgehalten:
 - [ ] **Procreate-Zeichnungen** noch mit rein — eigene Illustrationen/Zeichnungen aus Procreate,
       passt z. B. in die Galerie-Sektion "Design, Fotografie & Illustration" oder als eigene
       Reihe. Warten noch auf die konkreten Dateien von Nic.
+- [ ] **Claude Design nutzen, um aus der Seite ein Figma-File generieren zu lassen** — damit
+      Nic das Design in Figma überarbeiten kann (Desktop, Tablet, Mobile).
 
 ## Checkliste vor dem Live-Gang
 
-Stammt aus einer Projektnotiz ("Sicherheit/DSGVO unbedingt vor Go-Live erledigen"). **Hinweis:
-ich bin kein Anwalt — die DSGVO-Punkte hier sind technische Umsetzung, keine Rechtsberatung. Bei
+Aktiv gepflegte Fassung (Nachfolger der ursprünglichen Checkliste aus `bewerbung/`, dort
+weiterhin als historischer Snapshot vom 2026-08-19 einsehbar). Stammt aus einer
+Projektnotiz ("Sicherheit/DSGVO unbedingt vor Go-Live erledigen"). **Hinweis: ich bin kein
+Anwalt — die DSGVO-Punkte hier sind technische Umsetzung, keine Rechtsberatung. Bei
 Unsicherheit bitte juristisch prüfen lassen, insbesondere Impressum/Datenschutzerklärung.**
 
 ### Bereits erledigt
@@ -256,7 +241,9 @@ stellvertretend beantworten oder recherchieren.
 ## Hotfixes
 
 Änderungen, die nach dem initialen Commit per Commit/Push nachgezogen wurden. Neueste Einträge
-oben.
+oben. Dieses Log reicht zurück bis zum Beginn des Projekts (übernommen aus `bewerbung/`, wo es
+bis zum Einfrieren am 2026-08-19 weitergeführt wurde) — **ab dem 2026-08-19 ist dies der
+aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
 
 ### 2026-08-03 (Cookie-Consent-CDN: Subresource Integrity nachgezogen)
 - Die beiden jsDelivr-Includes der `vanilla-cookieconsent`-Library (`cookieconsent.css` im
@@ -934,7 +921,7 @@ oben.
 ### 2026-07-27 (Private Fotografie-Galerie: alle 23 statt 10 ausgewählte Fotos)
 - **`GALLERY_IMAGES_PHOTOS` (3. Galerie-Reihe):** komplett neu aus `img/privates/` aufgebaut —
   jetzt wirklich alle 23 dort liegenden Fotos statt der vorherigen 10er-Auswahl. Gleiche
-  Verarbeitung wie zuvor: auf 900px lange Kante skaliert (Originale 5184×3456, Seitenverhältnis
+  Verarbeitung wie zuvor: auf 900px lange Kante skaliert (Originale 5184×3456, Seitenverhaeltnis
   3:2 bleibt erhalten, kein Zuschnitt nötig), JPEG q76, `{src,w,h}`-Format für exaktes
   `aspect-ratio` ohne Layout-Jank. 23 Bilder zusammen ca. 900KB.
 
