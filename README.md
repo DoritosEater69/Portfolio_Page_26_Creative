@@ -245,6 +245,33 @@ oben. Dieses Log reicht zurück bis zum Beginn des Projekts (übernommen aus `be
 bis zum Einfrieren am 2026-08-19 weitergeführt wurde) — **ab dem 2026-08-19 ist dies der
 aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
 
+### 2026-08-26 (8) (Komplette Schrift woelbt sich mittig beim Scrollen, nicht nur die Oberkante)
+- Nic: "Die komplette Schrift darf mittig auch gewoelbt werden beim scroll". Bisher (siehe (6))
+  hat sich nur der vom Top-Down-Sweep bereits erfasste obere Teil gewoelbt - die untere
+  Haelfte/Grundlinie eines Buchstabens blieb bis zum vollstaendigen Durchlauf des Sweeps
+  praktisch gerade, weil ihr `rowAmt` (Streckungs-Anteil) dort immer nahe 0 war.
+- Umsetzung: jede Spalte bekommt jetzt zusaetzlich zur bisherigen Streckung einen eigenen
+  vertikalen BASIS-Versatz (`colBottom`-Startwert statt 0), der mit dem Scroll-Fortschritt
+  waechst und in der Mitte am groessten ist (`eased * BOW_MAX * h * dome`, `BOW_MAX = 0.5`).
+  Dieser Versatz gilt fuer die GESAMTE Spalte (jede Zeile inkl. der vom Sweep noch nicht
+  erfassten unteren Zeilen), hebt also den kompletten Buchstaben inklusive Grundlinie in der
+  Mitte an - nicht mehr nur die Oberkante. Die Kosinus-Woelbung pro Spalte wird dafuer einmal
+  vorab berechnet (`colDome[]`) statt wie bisher pro Zeile neu.
+- Die "Zeile noch unangetastet"-Kurzschluss-Zeichnung (fuer Zeilen mit `rowAmt` nahe 0) zeichnet
+  jetzt ebenfalls pro Spalte einzeln statt in einem Stueck, weil jede Spalte durch den neuen
+  Basis-Versatz einen eigenen Startpunkt hat - bleibt aber weiterhin luecklos (jede Spalte
+  exakt `colW` breit, keine Verschmaelerung, siehe Nic-Fix in (6)).
+- `destH`-Formel um `+ BOW_MAX` erweitert, damit der zusaetzliche Versatz auf dem Canvas Platz
+  hat.
+- Verifiziert per Node-Harness (erweitert um einen neuen Check speziell fuer die Grundlinie):
+  bei `eased` 0.2/0.5/0.9 woelbt sich die Grundlinie (die vom Sweep NIE direkt gestreckt wird)
+  in der Mitte sichtbar nach oben (z. B. 43px Unterschied Mitte vs. Rand bei eased=0.9 gegenueber
+  ca. 10px bei eased=0.2 - waechst also mit dem Scroll), bleibt dabei weiterhin absolut luecklos
+  zwischen allen 24 Spalten, und der bestehende Oberkanten-Rolleneffekt aus (6)/(7) ist
+  unveraendert intakt.
+- Weiterhin nicht in einem echten Browser verifizierbar (siehe (2)) - die Zahlen bestaetigen nur
+  die Geometrie, nicht das tatsaechliche Scroll-Gefuehl.
+
 ### 2026-08-26 (7) (Roll-Effekt extremer)
 - Nic: "Effekt ist top - etwas extremer bitte". Reine Tuning-Aenderung an (6), keine
   Struktur-/Logikaenderung: `MAX_STRETCH` 3.0 -> 4.4 (staerkere maximale Streckung) und

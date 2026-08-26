@@ -6286,6 +6286,7 @@ const LensFX = (() => {
     const MAX_STRETCH = 4.4;
     const FRONT_BAND = 0.14;
     const DOME_MIN = 0.14;
+    const BOW_MAX = 0.5;
     const DPR = Math.min(window.devicePixelRatio || 1, 2);
 
     function ensure(el) {
@@ -6343,7 +6344,7 @@ const LensFX = (() => {
         state.raster = src;
 
         const destW = Math.ceil(w * 1.06);
-        const destH = Math.ceil(h * (1 + (MAX_STRETCH - 1) * 1.1));
+        const destH = Math.ceil(h * (1 + (MAX_STRETCH - 1) * 1.1 + BOW_MAX));
         state.destW = destW;
         state.destH = destH;
         state.canvas.width = Math.round(destW * DPR);
@@ -6376,9 +6377,24 @@ const LensFX = (() => {
         // Zwischenraum an die naechste angrenzend (dx = baseX + c*colW, dw = colW) - horizontal
         // bleibt die Schrift damit immer nahtlos zusammenhaengend, nur die Hoehe/Position pro
         // Spalte variiert (die Woelbung selbst), keine seitlichen Risse.
+        // 2026-08-26 (8) Nic: "die komplette Schrift darf mittig auch gewoelbt werden beim
+        // scroll" - bisher hat sich nur die vom Front-Sweep bereits erfasste Oberkante
+        // gewoelbt, die untere Haelfte/Grundlinie blieb bis zum Schluss praktisch gerade. Fix:
+        // jede Spalte bekommt jetzt ZUSAETZLICH einen eigenen vertikalen Basis-Versatz
+        // (colBottom-Startwert statt 0), der mit dem Scroll-Fortschritt waechst und in der
+        // Mitte am groessten ist (BOW_MAX * dome) - das hebt den GESAMTEN Buchstaben inkl.
+        // Grundlinie in der Mitte an, nicht nur die obere Kante. Die Spalten-Woelbung (dome)
+        // wird dafuer einmal pro Spalte vorab berechnet statt wie bisher pro Zeile neu.
         const front = 1 - eased;
         const span = Math.max(1e-4, 1 - front);
-        const colBottom = new Array(COLS).fill(0);
+        const colDome = new Array(COLS);
+        const colBottom = new Array(COLS);
+        for (let c = 0; c < COLS; c++) {
+            const colFrac = (c + 0.5) / COLS;
+            const dome = DOME_MIN + (1 - DOME_MIN) * Math.cos((colFrac - 0.5) * Math.PI);
+            colDome[c] = dome;
+            colBottom[c] = eased * BOW_MAX * h * dome;
+        }
         for (let k = STRIPS - 1; k >= 0; k--) {
             const rowFracBottom = (STRIPS - 1 - k) / (STRIPS - 1);
             const raw = (rowFracBottom - front) / FRONT_BAND;
@@ -6388,22 +6404,23 @@ const LensFX = (() => {
             const rowAmt = smooth * Math.pow(depth, 1.3);
 
             if (rowAmt < 1e-4) {
-                // Zeile noch komplett unangetastet - in einem Stueck zeichnen, alle Spalten
-                // bleiben synchron (guenstiger als COLS einzelne no-op-Segmente).
-                const dy = destH - colBottom[0] - stripH;
-                ctx.drawImage(
-                    state.raster,
-                    0, k * stripH * DPR, w * DPR, stripH * DPR,
-                    baseX, dy, w, stripH
-                );
-                for (let c = 0; c < COLS; c++) colBottom[c] += stripH;
+                // Zeile noch komplett unangetastet vom Roll-Sweep - Basis-Versatz (der Bug)
+                // ist aber pro Spalte unterschiedlich, daher weiterhin pro Spalte einzeln
+                // zeichnen (bleibt trotzdem luecklos, da dw immer exakt colW ist).
+                for (let c = 0; c < COLS; c++) {
+                    const dy = destH - colBottom[c] - stripH;
+                    ctx.drawImage(
+                        state.raster,
+                        c * colW * DPR, k * stripH * DPR, colW * DPR, stripH * DPR,
+                        baseX + c * colW, dy, colW, stripH
+                    );
+                    colBottom[c] += stripH;
+                }
                 continue;
             }
 
             for (let c = 0; c < COLS; c++) {
-                const colFrac = (c + 0.5) / COLS;
-                const dome = DOME_MIN + (1 - DOME_MIN) * Math.cos((colFrac - 0.5) * Math.PI);
-                const localAmt = rowAmt * dome;
+                const localAmt = rowAmt * colDome[c];
 
                 const stretch = 1 + localAmt * (MAX_STRETCH - 1);
                 const dh = stripH * stretch;
