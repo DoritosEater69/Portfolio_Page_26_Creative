@@ -6282,10 +6282,10 @@ const heroNameSpans = heroNameEl.querySelectorAll("span");
 // sich im Gegenzug ein.
 const LensFX = (() => {
     const STRIPS = 40;
-    const MAX_STRETCH = 2.6;
-    const MAX_SKEW = 0.16;
-    const MAX_NARROW = 0.22;
+    const COLS = 24;
+    const MAX_STRETCH = 3.0;
     const FRONT_BAND = 0.14;
+    const DOME_MIN = 0.28;
     const DPR = Math.min(window.devicePixelRatio || 1, 2);
 
     function ensure(el) {
@@ -6342,7 +6342,7 @@ const LensFX = (() => {
         sctx.fillText(el.textContent, 0, h * 0.8);
         state.raster = src;
 
-        const destW = Math.ceil(w * (1 + MAX_SKEW * 2.2));
+        const destW = Math.ceil(w * 1.06);
         const destH = Math.ceil(h * (1 + (MAX_STRETCH - 1) * 1.1));
         state.destW = destW;
         state.destH = destH;
@@ -6359,39 +6359,63 @@ const LensFX = (() => {
         ctx.clearRect(0, 0, destW, destH);
         const w = state.rw, h = state.rh;
         const stripH = h / STRIPS;
+        const colW = w / COLS;
         const baseX = (destW - w) / 2;
-        // 2026-08-26 (4) Nic: "nicht einfach stehen bleiben und einen Swirl-Effekt bekommen -
-        // die obere Achse soll sich zuerst laenger ziehen, dann der Rest, wie eine Schrift auf
-        // einem Marmeladenglas, das sich dreht". Kein oszillierender Sinus-Wave mehr (las sich
-        // wie ein Swirl) - stattdessen eine "Front", die beim Scrollen von oben nach unten
-        // durch die Schrift wandert: front sinkt von 1 (nichts verzerrt) auf 0 (alles verzerrt)
-        // waehrend eased 0->1 steigt. Nur der Bereich OBERHALB der Front ist ueberhaupt aktiv,
-        // je naeher an der Spitze desto staerker gestreckt UND leicht schmaler + seitlich
-        // geneigt (Perspektive/Kruemmung) - simuliert Text, der sich um einen Glaszylinder
-        // zieht, statt einer gleichmaessigen Welle.
+        // 2026-08-26 (6) Nic: "die Font soll sich mit der Mittel-Oberkante immer weiter nach
+        // oben ausweiten und dann abrollen - wie eine Schrift auf einer Rolle, die man ab-
+        // oder aufrollt. Die Schrift dabei nicht zerfallen in Stuecke - die muss IMMER korrekt
+        // zusammenbleiben". Der Top-Down-"Front"-Sweep bleibt (Zeilen werden von oben nach
+        // unten nacheinander aktiv), ist jetzt zusaetzlich pro Spalte gewichtet statt ueber die
+        // ganze Zeilenbreite gleich: die MITTLERE Spalte bekommt die volle Streckung, Richtung
+        // Rand nimmt sie nach einer Kosinus-Kurve ab (DOME_MIN = Rest-Anteil am Rand). Jede
+        // Spalte akkumuliert dadurch ihre eigene Hoehe - die mittleren Spalten wachsen schneller
+        // nach oben als die aeusseren, es entsteht eine gewoelbte Oberkante - der Rolleneffekt.
+        // WICHTIG (Nic-Fix): keine horizontale Verschmaelerung (MAX_NARROW) mehr pro Spalte -
+        // das erzeugte transparente Luecken zwischen den Spalten-Slices, die wie zerfallende
+        // Buchstaben-Stuecke aussahen. Jede Spalte ist jetzt exakt colW breit und ohne
+        // Zwischenraum an die naechste angrenzend (dx = baseX + c*colW, dw = colW) - horizontal
+        // bleibt die Schrift damit immer nahtlos zusammenhaengend, nur die Hoehe/Position pro
+        // Spalte variiert (die Woelbung selbst), keine seitlichen Risse.
         const front = 1 - eased;
         const span = Math.max(1e-4, 1 - front);
-        let cursorFromBottom = 0;
+        const colBottom = new Array(COLS).fill(0);
         for (let k = STRIPS - 1; k >= 0; k--) {
             const rowFracBottom = (STRIPS - 1 - k) / (STRIPS - 1);
             const raw = (rowFracBottom - front) / FRONT_BAND;
             const activation = Math.max(0, Math.min(1, raw));
             const smooth = activation * activation * (3 - 2 * activation);
             const depth = Math.max(0, Math.min(1, (rowFracBottom - front) / span));
-            const localAmt = smooth * Math.pow(depth, 1.3);
+            const rowAmt = smooth * Math.pow(depth, 1.3);
 
-            const stretch = 1 + localAmt * (MAX_STRETCH - 1);
-            const dh = stripH * stretch;
-            const skew = MAX_SKEW * w * localAmt;
-            const dw = w * (1 - MAX_NARROW * localAmt);
-            const dx = baseX + (w - dw) / 2 + skew;
-            const dy = destH - cursorFromBottom - dh;
-            ctx.drawImage(
-                state.raster,
-                0, k * stripH * DPR, w * DPR, stripH * DPR,
-                dx, dy, dw, dh
-            );
-            cursorFromBottom += dh;
+            if (rowAmt < 1e-4) {
+                // Zeile noch komplett unangetastet - in einem Stueck zeichnen, alle Spalten
+                // bleiben synchron (guenstiger als COLS einzelne no-op-Segmente).
+                const dy = destH - colBottom[0] - stripH;
+                ctx.drawImage(
+                    state.raster,
+                    0, k * stripH * DPR, w * DPR, stripH * DPR,
+                    baseX, dy, w, stripH
+                );
+                for (let c = 0; c < COLS; c++) colBottom[c] += stripH;
+                continue;
+            }
+
+            for (let c = 0; c < COLS; c++) {
+                const colFrac = (c + 0.5) / COLS;
+                const dome = DOME_MIN + (1 - DOME_MIN) * Math.cos((colFrac - 0.5) * Math.PI);
+                const localAmt = rowAmt * dome;
+
+                const stretch = 1 + localAmt * (MAX_STRETCH - 1);
+                const dh = stripH * stretch;
+                const dx = baseX + c * colW;
+                const dy = destH - colBottom[c] - dh;
+                ctx.drawImage(
+                    state.raster,
+                    c * colW * DPR, k * stripH * DPR, colW * DPR, stripH * DPR,
+                    dx, dy, colW, dh
+                );
+                colBottom[c] += dh;
+            }
         }
     }
 

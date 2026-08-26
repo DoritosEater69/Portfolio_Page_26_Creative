@@ -245,6 +245,43 @@ oben. Dieses Log reicht zurück bis zum Beginn des Projekts (übernommen aus `be
 bis zum Einfrieren am 2026-08-19 weitergeführt wurde) — **ab dem 2026-08-19 ist dies der
 aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
 
+### 2026-08-26 (6) (LensFX-Verzerrung: "Roll-Effekt" mit gewoelbter Mittel-Oberkante statt Neigung)
+- Nic zum Front-Sweep aus (4): die Schrift soll sich mit der MITTEL-Oberkante immer weiter
+  nach oben ausweiten und dann "abrollen" - wie eine Schrift auf einer Rolle, die man auf-
+  oder abrollt. Zusatz-Vorgabe: die Schrift darf dabei NICHT in Stuecke zerfallen, sie muss
+  immer sichtbar zusammenbleiben.
+- Umsetzung: `draw()` in `LensFX` von einem reinen Zeilen-Streifen-Warp (1D, `STRIPS`) auf
+  ein Zeilen x Spalten-Raster (2D, `STRIPS x COLS`, `COLS = 24`) erweitert. Der bestehende
+  Top-Down-"Front"-Sweep (Zeilen werden von oben nach unten nacheinander aktiv, siehe (4))
+  bleibt unveraendert - neu ist, dass jede Zeile zusaetzlich pro Spalte gewichtet wird: die
+  mittlere Spalte bekommt die volle Streckung (`localAmt`), zum Rand hin nimmt sie nach einer
+  Kosinus-Kurve auf einen Rest-Anteil `DOME_MIN = 0.28` ab. Jede Spalte akkumuliert dadurch
+  ihre eigene Hoehe unabhaengig (`colBottom[]`-Array statt einem einzelnen Cursor wie vorher)
+  - die mittleren Spalten wachsen schneller nach oben als die aeusseren, es entsteht eine
+  gewoelbte statt einer flachen Oberkante: der Rolleneffekt.
+- Wichtige Korrektur waehrend der Umsetzung (Nic: "nicht zerfallen, muss zusammenbleiben"):
+  die urspruengliche Fassung hat wie beim vorherigen Front-Sweep (4) jede Spalte zusaetzlich
+  horizontal leicht verschmaelert (`MAX_NARROW`) und zentriert - das erzeugt aber zwischen
+  benachbarten Spalten sichtbare transparente Luecken, die wie auseinanderfallende
+  Buchstaben-Stuecke wirken. Fix: `MAX_NARROW` komplett entfernt, jede Spalte ist jetzt exakt
+  `colW` breit und schliesst nahtlos an die naechste an (`dx = baseX + c*colW`, `dw = colW`,
+  keine Luecke, kein Ueberlapp) - nur die Hoehe/Position pro Spalte variiert noch (das ist die
+  Woelbung selbst), nie die Breite. Ebenfalls entfernt: den seitlichen Versatz (`MAX_SKEW`)
+  aus (4), der sich als "Neigung" statt als Rolle gelesen hatte.
+- Verifiziert per Node-Laufzeit-Harness (DOM/Canvas-Stubs, kein echter Browser verfuegbar -
+  siehe unten): (a) Syntax-Check + Identifier-Audit (keine verwaisten `MAX_SKEW`/`MAX_NARROW`-
+  Referenzen mehr, `COLS`/`DOME_MIN` je genau einmal deklariert); (b) kompletter Scroll-Sweep
+  inkl. Edge-Cases lief ohne Fehler/NaN durch; (c) gezielte geometrische Pruefung direkt gegen
+  die echten `drawImage`-Aufrufe der obersten (voll aktiven) Zeile bei `eased=1`: alle 24
+  Spalten liegen exakt buendig aneinander (keine Luecke > 0px), die Hoehe waechst streng
+  monoton von den Raendern zur Mitte und wieder ab (glatte Woelbung, keine Spruenge), und die
+  Streckung der Mittelspalte ist deutlich (>1.5x) staerker als an den Raendern - die Kuppel-
+  Form und die "bleibt zusammen"-Vorgabe sind damit numerisch bestaetigt.
+- **Wichtig:** Wie bei (2)-(5) bleibt das visuelle Endergebnis in einem echten Browser nicht
+  von mir pruefbar (Sandbox ohne Netzwerkzugriff auf Nics Chrome, siehe (2)) - die obigen
+  Checks bestaetigen nur, dass sich die Geometrie mathematisch wie beschrieben verhaelt, nicht
+  wie es sich tatsaechlich beim Scrollen anfuehlt.
+
 ### 2026-08-26 (5) (Unterstrich ersetzt durch wachsenden Punkte-Trail nach dem Zitat)
 - Neue Idee statt Unterstrich: "well.. here i am?" bekommt einen angehaengten Punkte-Trail
   ("......!"), der beim Scrollen (gekoppelt an dieselbe Pin-Restrecke wie vorher der
