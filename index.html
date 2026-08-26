@@ -2,6 +2,25 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
+<!-- Google Consent Mode v2: Standardwerte (alles denied ausser security_storage), laeuft immer, auch ohne Einwilligung -->
+<script data-cookieconsent="ignore">
+  window.dataLayer = window.dataLayer || [];
+  function gtag() {
+    dataLayer.push(arguments);
+  }
+  gtag("consent", "default", {
+    ad_personalization: "denied",
+    ad_storage: "denied",
+    ad_user_data: "denied",
+    analytics_storage: "denied",
+    functionality_storage: "denied",
+    personalization_storage: "denied",
+    security_storage: "granted",
+    wait_for_update: 500,
+  });
+  gtag("set", "ads_data_redaction", true);
+  gtag("set", "url_passthrough", false);
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NICLAS KOCH - Digital Designer</title>
 <meta name="description" content="Niclas Koch — Web- &amp; Grafikdesigner mit UI/UX-Schwerpunkt. Echte Projekte, sauberer Code und ein Auge fürs Detail. Bewerbungs-Portfolio für meine nächste Station im Team.">
@@ -5985,6 +6004,12 @@ function loadGaIfConsented() {
     gtag('config', 'G-VHTRVMJB0K');
 }
 
+function updateGaConsent() {
+    if (typeof gtag !== "function") return;
+    const granted = window.CookieConsent && CookieConsent.acceptedCategory("analytics");
+    gtag('consent', 'update', { analytics_storage: granted ? 'granted' : 'denied' });
+}
+
 function initCookieConsent() {
     if (!window.CookieConsent) return;
     CookieConsent.run({
@@ -6050,11 +6075,13 @@ function initCookieConsent() {
             loadHcaptchaIfConsented();
             loadAdobeEmbedIfConsented();
             loadGaIfConsented();
+            updateGaConsent();
         },
         onChange: () => {
             loadHcaptchaIfConsented();
             loadAdobeEmbedIfConsented();
             loadGaIfConsented();
+            updateGaConsent();
         }
     });
 }

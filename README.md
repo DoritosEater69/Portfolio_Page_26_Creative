@@ -245,12 +245,17 @@ oben. Dieses Log reicht zurück bis zum Beginn des Projekts (übernommen aus `be
 bis zum Einfrieren am 2026-08-19 weitergeführt wurde) — **ab dem 2026-08-19 ist dies der
 aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
 
-### 2026-08-26 (Favicon aus dem "N"-Logo eingebunden)
-- Bisheriges Inline-SVG-Favicon (Platzhalter "NK"-Text auf schwarzem Rechteck) ersetzt durch
-  ein richtiges Favicon-Set aus dem von Nic gelieferten "N"-Logo (Amber auf Schwarz):
-  `favicon.ico` (16/32/48px) im Ordner-Root, PNGs in 16, 32, 192, 512px sowie ein
-  `apple-touch-icon.png` (180px) in `img/`. Entsprechende `<link rel="icon">`-/
-  `apple-touch-icon`-Tags im `<head>` ergänzt.
+### 2026-08-26 (Google Consent Mode v2 eingebunden)
+- Neues Script direkt nach dem `charset`-Meta-Tag (praktisch erstes Script im `<head>`),
+  das sofort beim Laden alle Speicherkategorien auf "denied" setzt (ausser
+  `security_storage`) - unabhaengig vom Cookie-Banner. Neues `updateGaConsent()` sendet
+  bei Zustimmung/Aenderung der "analytics"-Kategorie ein
+  `gtag("consent","update",{analytics_storage:...})`, gehaengt an dieselben
+  `onConsent`/`onChange`-Hooks wie `loadGaIfConsented()`.
+- gtag.js selbst wird weiterhin erst nach Einwilligung ueberhaupt geladen (siehe
+  vorheriger Hotfix) - der Consent-Mode-Default sorgt zusaetzlich dafuer, dass die
+  Google-Tags von Anfang an ueber den (verweigerten) Zustimmungsstatus Bescheid wissen,
+  sobald sie laden, statt implizit von "granted" auszugehen.
 
 ### 2026-08-26 (hCaptcha in Datenschutzerklaerung nachgezogen)
 - hCaptcha wurde im Kontaktformular schon laenger genutzt, war in dieser
@@ -282,6 +287,13 @@ aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
   nachgezogen werden.
 - **Noch zu tun (nur du kannst das):** in der GA4-Property die Datenaufbewahrungsdauer (2
   oder 14 Monate) setzen, falls noch nicht geschehen.
+
+### 2026-08-26 (Favicon aus dem "N"-Logo eingebunden)
+- Bisheriges Inline-SVG-Favicon (Platzhalter "NK"-Text auf schwarzem Rechteck) ersetzt durch
+  ein richtiges Favicon-Set aus dem von Nic gelieferten "N"-Logo (Amber auf Schwarz):
+  `favicon.ico` (16/32/48px) im Ordner-Root, PNGs in 16, 32, 192, 512px sowie ein
+  `apple-touch-icon.png` (180px) in `img/`. Entsprechende `<link rel="icon">`-/
+  `apple-touch-icon`-Tags im `<head>` ergänzt.
 
 ### 2026-08-03 (Cookie-Consent-CDN: Subresource Integrity nachgezogen)
 - Die beiden jsDelivr-Includes der `vanilla-cookieconsent`-Library (`cookieconsent.css` im
