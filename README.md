@@ -252,6 +252,15 @@ aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
   `apple-touch-icon.png` (180px) in `img/`. Entsprechende `<link rel="icon">`-/
   `apple-touch-icon`-Tags im `<head>` ergänzt.
 
+### 2026-08-26 (hCaptcha in Datenschutzerklaerung nachgezogen)
+- hCaptcha wurde im Kontaktformular schon laenger genutzt, war in dieser
+  datenschutz.html aber noch nicht als eigener Abschnitt gelistet (Nic: "Soll unbedingt
+  nachgezogen werden"). Neuer Abschnitt 5 "hCaptcha (Spamschutz im Kontaktformular)"
+  ergaenzt (Anbieter Intuition Machines Inc./USA, verarbeitete Daten, Rechtsgrundlage
+  Art. 6 Abs. 1 lit. a DSGVO, Widerrufshinweis) - identischer Text wie im live/-Ordner.
+  Folgeabschnitte (bisher Google Analytics als 5) auf 6-14 verschoben, Uebersichtsliste
+  in Abschnitt 2 ergaenzt.
+
 ### 2026-08-26 (Google Analytics 4 eingebunden)
 - GA4 (Property `G-VHTRVMJB0K`) per neuer, eigener Cookie-Kategorie "analytics"
   (vanilla-cookieconsent) eingebunden — `loadGaIfConsented()` laedt gtag.js erst, wenn
