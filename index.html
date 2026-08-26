@@ -723,14 +723,15 @@
     position:relative;
     padding: .06em .32em .22em; box-decoration-break: clone; -webkit-box-decoration-break: clone;
   }
-  /* 2026-08-26 Nic: Scroll-gekoppelter Unterstrich (0% -> 100%) unter dem Zitat - als
-     Background-Layer waere box-decoration-break:clone oben betroffen, daher separates
-     ::after-Element. --underline-progress wird per JS in updateOnScroll gesetzt. */
-  .intro-quote-highlight::after{
-    content:"";
-    position:absolute; left:0; bottom:.05em; height:3px;
-    width: calc(var(--underline-progress, 0) * 100%);
-    background: currentColor;
+  /* 2026-08-26 (5) Nic: Unterstrich-Idee ersetzt durch Punkte-Trail: "well.. here i am?" +
+     eine Reihe Punkte, die beim Scrollen (an dieselbe Pin-Restrecke gekoppelt wie vorher der
+     Unterstrich) von 0 auf voll wachsen und dabei ganz regulaer umbrechen, am Ende ein "!".
+     word-break:break-all noetig, weil ein durchgehender Punkte-String sonst als ein einziges
+     nicht umbrechbares "Wort" behandelt wird. Voller Text steht schon im HTML (SEO/Fallback
+     ohne JS zeigt den kompletten Trail), JS kuerzt ihn per textContent-Substring passend zum
+     Scroll-Fortschritt (siehe updateOnScroll). */
+  .intro-quote-trail{
+    word-break: break-all; overflow-wrap: anywhere;
   }
   /* 2026-08-26 (3) Nic: Canvas-Overlay fuer den neuen (Canvas-basierten) Lens-/Fisheye-
      Liquify-Effekt - siehe LensFX im Script. Haengt an der Boden-Mitte des jeweiligen
@@ -2075,7 +2076,7 @@
 
 <section id="intro-quote" class="intro-statement">
   <div class="intro-quote-pin">
-    <p class="intro-quote-text"><span class="intro-quote-highlight">well.. here i am?</span></p>
+    <p class="intro-quote-text"><span class="intro-quote-highlight">well.. here i am?</span><span class="intro-quote-trail">................................................................................!</span></p>
   </div>
 </section>
 
@@ -5704,6 +5705,10 @@ const introQuoteEl = document.querySelector(".intro-quote-pin");
 
 const introQuoteHighlightEl = document.querySelector(".intro-quote-highlight");
 
+const introQuoteTrailEl = document.querySelector(".intro-quote-trail");
+
+const introQuoteTrailFull = introQuoteTrailEl ? introQuoteTrailEl.textContent : "";
+
 const introFollowupEl = document.getElementById("intro-followup");
 
 const introQuoteTextEl = document.querySelector(".intro-quote-text");
@@ -6492,13 +6497,14 @@ function updateOnScroll() {
         // auch auf Mobile. pinRange = wie viel Zusatzstrecke insgesamt zur Verfuegung steht (200vh
         // - 100vh Viewport = 100vh); -qsRect.top waechst 0 -> pinRange waehrend genau dieser
         // Zusatzstrecke durchlaufen wird (davor/danach clamped auf 0/1).
-        if (introQuoteSectionEl && introQuoteHighlightEl) {
+        if (introQuoteSectionEl && introQuoteTrailEl) {
             const qsRect = introQuoteSectionEl.getBoundingClientRect();
             const pinRange = qsRect.height - vh;
             const underlineProg = pinRange > 0 ? Math.max(0, Math.min(1, -qsRect.top / pinRange)) : 1;
-            if (introQuoteHighlightEl._lastUnderlineProg !== underlineProg) {
-                introQuoteHighlightEl._lastUnderlineProg = underlineProg;
-                introQuoteHighlightEl.style.setProperty("--underline-progress", String(underlineProg));
+            const revealCount = Math.round(underlineProg * introQuoteTrailFull.length);
+            if (introQuoteTrailEl._lastRevealCount !== revealCount) {
+                introQuoteTrailEl._lastRevealCount = revealCount;
+                introQuoteTrailEl.textContent = introQuoteTrailFull.slice(0, revealCount);
             }
         }
         // Feedback Nic 2026-08-19 (3): "Die oberen 2 Sektionen 'I wanna make this world less

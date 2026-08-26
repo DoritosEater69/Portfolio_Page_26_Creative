@@ -245,6 +245,22 @@ oben. Dieses Log reicht zurück bis zum Beginn des Projekts (übernommen aus `be
 bis zum Einfrieren am 2026-08-19 weitergeführt wurde) — **ab dem 2026-08-19 ist dies der
 aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
 
+### 2026-08-26 (5) (Unterstrich ersetzt durch wachsenden Punkte-Trail nach dem Zitat)
+- Neue Idee statt Unterstrich: "well.. here i am?" bekommt einen angehaengten Punkte-Trail
+  ("......!"), der beim Scrollen (gekoppelt an dieselbe Pin-Restrecke wie vorher der
+  Unterstrich) von 0 auf voll waechst und dabei ganz regulaer per Textumbruch umbricht -
+  am Ende steht ein "!".
+- Umsetzung: 80 Punkte + "!" (81 Zeichen) stehen komplett als statischer Text im HTML
+  (`.intro-quote-trail`) - gut fuer SEO/Fallback ohne JS. JS kuerzt den sichtbaren Text per
+  `textContent`-Substring auf `Math.round(progress * 81)` Zeichen, waechst also mit demselben
+  Fortschrittswert, der vorher `--underline-progress` gesetzt hat. `word-break: break-all`
+  noetig, weil ein durchgehender Punkte-String sonst als ein nicht umbrechbares "Wort" gilt.
+- Alte Unterstrich-CSS (`::after` mit `--underline-progress`) komplett entfernt.
+- Trail-Span ist bewusst NICHT Teil des LensFX-Warp-Ziels (nur "well.. here i am?" selbst
+  bekommt den Lens-Effekt beim Wegscrollen) - Trail bleibt normaler Text.
+- Weiterhin nicht im echten Browser gegengeprueft.
+- Nur in `creative/` (Standardregel "nur noch /creative").
+
 ### 2026-08-26 (4) (Lens-Effekt: Swirl raus, stattdessen Top-Down-Welle + Zitat ohne Highlight-Box)
 - Nic-Feedback: "es tut sich was" (Canvas-Ansatz greift jetzt), aber die Verzerrung sollte
   nicht wie ein gleichmaessiger Swirl aussehen - stattdessen soll sich zuerst die obere Achse
