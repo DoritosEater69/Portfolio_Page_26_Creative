@@ -245,6 +245,29 @@ oben. Dieses Log reicht zurück bis zum Beginn des Projekts (übernommen aus `be
 bis zum Einfrieren am 2026-08-19 weitergeführt wurde) — **ab dem 2026-08-19 ist dies der
 aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
 
+### 2026-08-26 (Scroll-gekoppelter Unterstrich unter "well.. here i am?" mit Scroll-Gate)
+- "well.. here i am?" bekommt einen an die Scrollposition gekoppelten Unterstrich, der
+  von 0% auf 100% waechst. Erst wenn er vollstaendig ist, laesst sich die Sektion normal
+  weiter aus dem View scrollen.
+- Umsetzung: #intro-quote ist jetzt 200vh hoch statt 100vh. Der innere Text-Wrapper
+  (.intro-quote-pin) ist per position:sticky fixiert und bleibt waehrend der
+  zusaetzlichen 100vh Scrollstrecke im Viewport stehen ("Pin"), waehrenddessen waechst
+  der Unterstrich (--underline-progress als CSS-Variable, pro Frame in updateOnScroll
+  gesetzt). Erst danach loest sich der Pin und die Sektion scrollt normal weiter -
+  dort greifen Fade-/Lens-/Parallax-Effekt unveraendert wie vorher.
+- introQuoteEl (JS) zeigt jetzt auf .intro-quote-pin statt auf die Sektion selbst, damit
+  die bestehenden Effekte weiterhin exakt beim Verlassen des Pins greifen, nicht schon
+  beim Betreten der (jetzt 200vh grossen) Sektion.
+- Gate-Schwelle in updateOnScroll (loremRect.top > vh * N) von vh*6 auf vh*7 angepasst,
+  da #intro-quote jetzt als zwei statt ein 100vh-Screen zaehlt.
+- Laeuft bewusst auch auf Mobile (nicht im isMobileIntro-Gate), da unabhaengig vom
+  bestehenden Fade/Lens-Bereich implementiert.
+- **Konnte NICHT visuell im echten Browser gegengeprueft werden** - lokaler Preview-
+  Server liegt in einer fuer Chrome nicht erreichbaren Sandbox (siehe vorherige
+  Lens-Effekt-Faelle). Bitte im Browser pruefen und Rueckmeldung geben.
+- Nur in `creative/` (Standardregel "nur noch /creative", keine Ausnahme fuer diese
+  Anfrage genannt).
+
 ### 2026-08-26 (Illustration inline-027 aus Gallery-Slider entfernt, beide Slider durchgemischt)
 - Rauch-/Wolken-Tattoo-Illustration (inline-027.webp) auf Nics Wunsch (Screenshot)
   komplett aus GALLERY_IMAGES entfernt. Bilddatei bleibt im img/inline/ Ordner liegen,
