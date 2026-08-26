@@ -245,6 +245,17 @@ oben. Dieses Log reicht zurück bis zum Beginn des Projekts (übernommen aus `be
 bis zum Einfrieren am 2026-08-19 weitergeführt wurde) — **ab dem 2026-08-19 ist dies der
 aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
 
+### 2026-08-26 (Intro-Sequenz auf Englisch umgetextet)
+- Neue, vierte Intro-Sektion ergaenzt ("intro-pretitle") mit kleiner Vorzeile
+  "you're looking for an" - vor der riesigen Titelzeile.
+- Riesige Titelzeile "Digital" / "Designer" -> "DIGITAL" / "DESIGNER?".
+- Zitat-Text "I wanna make this world less boring..." -> "well.. here i am?".
+- Folgezeile "...would you let me try it together with you?" -> "...wanna join me?".
+- Neue Sektion vollstaendig in den bestehenden handgebauten Scroll-Blur/Parallax-Effekt
+  integriert (introScrollFxEls-Array, Rect-Tracking, Parallax-Drift wie bei Zitat/
+  Folgezeile) - kein Bruch der bestehenden Optik/des bestehenden Feingefuehls dieser
+  Sektionen.
+
 ### 2026-08-26 (Vita-Zeitleiste: Zeitraeume korrigiert, neuer Eintrag formwandler interactive)
 - Hylax-Eintrag von "seit 10.2021" auf "10.2021 - 04.2023" praezisiert.
 - Fellbox-Eintrag hatte faelschlich ebenfalls "seit 10.2021" stehen - korrigiert zu

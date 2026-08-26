@@ -686,6 +686,11 @@
   /* Feedback Nic 2026-08-19: Zitat- und Folge-Screen sollen dieselbe Schriftart/denselben
      Schnitt wie "Digital Designer" haben (Assignate/Fraunces, weight 900, nicht kursiv) - vorher
      lief das Zitat noch in der leichteren, kursiven Fraunces-Variante. */
+  .intro-pretitle-text{
+    font-family:'Assignate', 'Fraunces', serif; font-weight:900; font-style:normal;
+    font-size: clamp(calc(var(--fs-scale, 1) * 20px), calc(var(--fs-scale, 1) * 4vw), calc(var(--fs-scale, 1) * 48px));
+    line-height:1.25; color: var(--text); max-width: 920px; margin:0;
+  }
   .intro-quote-text{
     font-family:'Assignate', 'Fraunces', serif; font-weight:900; font-style:normal;
     font-size: clamp(calc(var(--fs-scale, 1) * 28px), calc(var(--fs-scale, 1) * 6vw), calc(var(--fs-scale, 1) * 72px));
@@ -2014,18 +2019,23 @@
 </nav>
 
 
+<section id="intro-pretitle" class="intro-statement">
+  <p class="intro-pretitle-text">you're looking for an</p>
+</section>
+
+
 <section id="intro-title" class="intro-statement">
-  <p class="intro-title-text"><span>Digital</span><span>Designer</span></p>
+  <p class="intro-title-text"><span>DIGITAL</span><span>DESIGNER?</span></p>
 </section>
 
 
 <section id="intro-quote" class="intro-statement">
-  <p class="intro-quote-text"><span class="intro-quote-highlight">I wanna make this<br>world less boring...</span></p>
+  <p class="intro-quote-text"><span class="intro-quote-highlight">well.. here i am?</span></p>
 </section>
 
 
 <section id="intro-followup" class="intro-statement">
-  <h2 class="intro-followup-text">...would you let me try it together with you?</h2>
+  <h2 class="intro-followup-text">...wanna join me?</h2>
 </section>
 
 
@@ -5640,6 +5650,10 @@ const heroEl = document.getElementById("hero");
 
 const heroNameEl = document.querySelector("#hero .hero-name");
 
+const introPretitleEl = document.getElementById("intro-pretitle");
+
+const introPretitleTextEl = document.querySelector(".intro-pretitle-text");
+
 const introTitleEl = document.getElementById("intro-title");
 
 const introQuoteEl = document.getElementById("intro-quote");
@@ -6214,8 +6228,9 @@ function updateOnScroll() {
         // auf Mobile bleibt der Effekt fuer die drei neuen Screens aus, nur heroEl behaelt sein
         // bisheriges Verhalten unveraendert.
         const isMobileIntro = window.innerWidth <= 900;
-        const introScrollFxEls = isMobileIntro ? [ heroEl ] : [ introTitleEl, introQuoteEl, introFollowupEl, heroEl ];
+        const introScrollFxEls = isMobileIntro ? [ heroEl ] : [ introPretitleEl, introTitleEl, introQuoteEl, introFollowupEl, heroEl ];
         let heroRectTop = 0, heroRectHeight = vh;
+        let pretitleRectTop = 0, pretitleRectHeight = vh;
         let quoteRectTop = 0, quoteRectHeight = vh;
         let followupRectTop = 0, followupRectHeight = vh;
         introScrollFxEls.forEach(el => {
@@ -6239,6 +6254,9 @@ function updateOnScroll() {
             if (el === heroEl) {
                 heroRectTop = r.top;
                 heroRectHeight = r.height;
+            } else if (el === introPretitleEl) {
+                pretitleRectTop = r.top;
+                pretitleRectHeight = r.height;
             } else if (el === introQuoteEl) {
                 quoteRectTop = r.top;
                 quoteRectHeight = r.height;
@@ -6256,10 +6274,16 @@ function updateOnScroll() {
         if (!isMobileIntro) {
             // Feedback Nic 2026-08-19 (5): "Die oberen Texte gern staerker mitscrollen lassen" -
             // Amplitude von 70px auf 140px erhoeht.
+            const pretitleTravelProg = Math.max(0, Math.min(1, (vh - pretitleRectTop) / (vh + pretitleRectHeight)));
             const quoteTravelProg = Math.max(0, Math.min(1, (vh - quoteRectTop) / (vh + quoteRectHeight)));
             const followupTravelProg = Math.max(0, Math.min(1, (vh - followupRectTop) / (vh + followupRectHeight)));
+            const pretitleTextY = (pretitleTravelProg - .5) * 140;
             const quoteTextY = (quoteTravelProg - .5) * 140;
             const followupTextY = (followupTravelProg - .5) * 140;
+            if (introPretitleTextEl && introPretitleTextEl._lastParallaxY !== pretitleTextY) {
+                introPretitleTextEl._lastParallaxY = pretitleTextY;
+                introPretitleTextEl.style.transform = `translateY(${pretitleTextY}px)`;
+            }
             if (introQuoteTextEl && introQuoteTextEl._lastParallaxY !== quoteTextY) {
                 introQuoteTextEl._lastParallaxY = quoteTextY;
                 introQuoteTextEl.style.transform = `translateY(${quoteTextY}px)`;
