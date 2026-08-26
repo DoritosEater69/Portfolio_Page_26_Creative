@@ -717,8 +717,10 @@
      box-decoration-break:clone sorgt dafuer, dass jede Zeile (durch <br> getrennt) ihre eigene,
      sauber abgeschlossene Highlight-Box bekommt statt eines durchgehenden Blocks ueber beide
      Zeilen. */
+  /* 2026-08-26 (4) Nic: "auch einfach weiss - Hintergrund weg" - kein Amber-Highlight-Kasten
+     mehr, Text erbt jetzt ganz normal die Textfarbe von .intro-quote-text (var(--text)). */
   .intro-quote-highlight{
-    background: var(--amber); color:#12100D; position:relative;
+    position:relative;
     padding: .06em .32em .22em; box-decoration-break: clone; -webkit-box-decoration-break: clone;
   }
   /* 2026-08-26 Nic: Scroll-gekoppelter Unterstrich (0% -> 100%) unter dem Zitat - als
@@ -728,7 +730,7 @@
     content:"";
     position:absolute; left:0; bottom:.05em; height:3px;
     width: calc(var(--underline-progress, 0) * 100%);
-    background:#12100D;
+    background: currentColor;
   }
   /* 2026-08-26 (3) Nic: Canvas-Overlay fuer den neuen (Canvas-basierten) Lens-/Fisheye-
      Liquify-Effekt - siehe LensFX im Script. Haengt an der Boden-Mitte des jeweiligen
@@ -6274,9 +6276,11 @@ const heroNameSpans = heroNameEl.querySelectorAll("span");
 // unveraendert) und wird beim Verzerren nur per Opacity ausgeblendet, das Canvas blendet
 // sich im Gegenzug ein.
 const LensFX = (() => {
-    const STRIPS = 36;
-    const MAX_STRETCH = 2.3;
-    const MAX_WAVE = 0.22;
+    const STRIPS = 40;
+    const MAX_STRETCH = 2.6;
+    const MAX_SKEW = 0.16;
+    const MAX_NARROW = 0.22;
+    const FRONT_BAND = 0.14;
     const DPR = Math.min(window.devicePixelRatio || 1, 2);
 
     function ensure(el) {
@@ -6333,7 +6337,7 @@ const LensFX = (() => {
         sctx.fillText(el.textContent, 0, h * 0.8);
         state.raster = src;
 
-        const destW = Math.ceil(w * (1 + MAX_WAVE * 2.4));
+        const destW = Math.ceil(w * (1 + MAX_SKEW * 2.2));
         const destH = Math.ceil(h * (1 + (MAX_STRETCH - 1) * 1.1));
         state.destW = destW;
         state.destH = destH;
@@ -6351,19 +6355,36 @@ const LensFX = (() => {
         const w = state.rw, h = state.rh;
         const stripH = h / STRIPS;
         const baseX = (destW - w) / 2;
+        // 2026-08-26 (4) Nic: "nicht einfach stehen bleiben und einen Swirl-Effekt bekommen -
+        // die obere Achse soll sich zuerst laenger ziehen, dann der Rest, wie eine Schrift auf
+        // einem Marmeladenglas, das sich dreht". Kein oszillierender Sinus-Wave mehr (las sich
+        // wie ein Swirl) - stattdessen eine "Front", die beim Scrollen von oben nach unten
+        // durch die Schrift wandert: front sinkt von 1 (nichts verzerrt) auf 0 (alles verzerrt)
+        // waehrend eased 0->1 steigt. Nur der Bereich OBERHALB der Front ist ueberhaupt aktiv,
+        // je naeher an der Spitze desto staerker gestreckt UND leicht schmaler + seitlich
+        // geneigt (Perspektive/Kruemmung) - simuliert Text, der sich um einen Glaszylinder
+        // zieht, statt einer gleichmaessigen Welle.
+        const front = 1 - eased;
+        const span = Math.max(1e-4, 1 - front);
         let cursorFromBottom = 0;
         for (let k = STRIPS - 1; k >= 0; k--) {
             const rowFracBottom = (STRIPS - 1 - k) / (STRIPS - 1);
-            const localAmt = eased * Math.pow(rowFracBottom, 1.6);
+            const raw = (rowFracBottom - front) / FRONT_BAND;
+            const activation = Math.max(0, Math.min(1, raw));
+            const smooth = activation * activation * (3 - 2 * activation);
+            const depth = Math.max(0, Math.min(1, (rowFracBottom - front) / span));
+            const localAmt = smooth * Math.pow(depth, 1.3);
+
             const stretch = 1 + localAmt * (MAX_STRETCH - 1);
             const dh = stripH * stretch;
-            const wave = MAX_WAVE * w * localAmt *
-                (0.6 * Math.sin(rowFracBottom * 5.5 + 0.6) + 0.4 * Math.sin(rowFracBottom * 2.1));
+            const skew = MAX_SKEW * w * localAmt;
+            const dw = w * (1 - MAX_NARROW * localAmt);
+            const dx = baseX + (w - dw) / 2 + skew;
             const dy = destH - cursorFromBottom - dh;
             ctx.drawImage(
                 state.raster,
                 0, k * stripH * DPR, w * DPR, stripH * DPR,
-                baseX + wave, dy, w, dh
+                dx, dy, dw, dh
             );
             cursorFromBottom += dh;
         }

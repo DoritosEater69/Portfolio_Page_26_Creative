@@ -245,6 +245,28 @@ oben. Dieses Log reicht zurück bis zum Beginn des Projekts (übernommen aus `be
 bis zum Einfrieren am 2026-08-19 weitergeführt wurde) — **ab dem 2026-08-19 ist dies der
 aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
 
+### 2026-08-26 (4) (Lens-Effekt: Swirl raus, stattdessen Top-Down-Welle + Zitat ohne Highlight-Box)
+- Nic-Feedback: "es tut sich was" (Canvas-Ansatz greift jetzt), aber die Verzerrung sollte
+  nicht wie ein gleichmaessiger Swirl aussehen - stattdessen soll sich zuerst die obere Achse
+  laenger ziehen, dann der Rest, "wie eine Schrift auf einem Marmeladenglas, das sich dreht".
+- Der oszillierende Sinus-Horizontal-Versatz (las sich als Swirl) ist raus. Neu: eine "Front",
+  die beim Scrollen von oben nach unten durch die Schrift wandert - bei wenig Scroll ist nur
+  der obere Rand ueberhaupt verzerrt, mit zunehmendem Scroll wandert die Verzerrung weiter nach
+  unten durch den Text (verifiziert per Node-Rechencheck: bei eased=0.2 ist nur oben was los,
+  bei eased=0.8+ faengt auch die Mitte an). Zusaetzlich pro Streifen leichte Verschmaelerung +
+  gleichbleibend gerichtete seitliche Neigung (statt hin-und-her) fuer den Kruemmungs-/
+  Glaszylinder-Look. MAX_STRETCH 2.3->2.6, STRIPS 36->40.
+- "well.. here i am?" auch einfach weiss, Amber-Highlight-Kasten komplett raus: Text erbt jetzt
+  normal die Textfarbe der Sektion (var(--text)) statt der harten #12100D-Farbe auf gelbem
+  Hintergrund. Der Unterstrich-Balken (0%->100%) ist entsprechend auf currentColor umgestellt
+  (war hart auf #12100D - waere auf dem jetzt transparenten/dunklen Hintergrund unsichtbar
+  gewesen).
+- Weiterhin nicht im echten Browser gegengeprueft - Verifikation diesmal per Node-Simulation
+  (Formel-Werte fuer top/mid/bottom bei verschiedenen Scroll-Staenden durchgerechnet, bestaetigt
+  dass die Front tatsaechlich wie gewuenscht von oben nach unten wandert), aber bitte trotzdem
+  im Browser pruefen.
+- Nur in `creative/` (Standardregel "nur noch /creative").
+
 ### 2026-08-26 (3) (Lens-/Fisheye-Effekt komplett neu: Canvas-Rasterung statt SVG-Filter)
 - Root-Cause fuer "Effekt greift 0" gefunden: `applyLensWarp()` wurde in `updateOnScroll()`
   vier Mal aufgerufen, war aber nirgends im Script definiert - ebenso `lensDispTitleEl`,
