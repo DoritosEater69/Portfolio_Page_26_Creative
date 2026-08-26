@@ -224,10 +224,10 @@ stellvertretend beantworten oder recherchieren.
 - [ ] **Platzhalter-Inhalte, die noch echte Inhalte brauchen:** Lorem-Ipsum-Text/Technik-Tags in
       den Projekt-Detail-Modals, Platzhalterbilder (picsum.photos) in der dritten Galerie-Reihe —
       sollen die vor Go-Live durch echte Inhalte ersetzt werden oder ist das bewusst "später"?
-- [ ] **Analytics/Tracking:** Soll überhaupt ein Analyse-Tool eingebunden werden (z. B.
-      datenschutzfreundlich wie Plausible/Fathom, oder klassisch Google Analytics)? Aktuell ist
-      keinerlei Tracking auf der Seite — falls doch gewünscht, ändert das die
-      Datenschutzerklärung und ggf. die CSP.
+- [x] **Analytics/Tracking:** ✅ Erledigt — Google Analytics 4 (Property `G-VHTRVMJB0K`)
+      eingebunden, geladen erst nach Einwilligung in die neue Cookie-Kategorie "Statistik"
+      (eigene dritte Kategorie neben "Technisch notwendig"/"Externe Dienste"). CSP und
+      Datenschutzerklärung entsprechend angepasst. Details siehe Hotfix-Eintrag unten.
 - [x] **Cookie-Banner nötig?** ✅ Erledigt — Cookie-Consent-Banner (vanilla-cookieconsent,
       Essenziell/Alle-Unterscheidung, hCaptcha + Adobe-XD-Embed werden erst nach Zustimmung
       geladen) ist umgesetzt und im Footer/über den Icon-Button unten links erreichbar, siehe
@@ -251,6 +251,28 @@ aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
   `favicon.ico` (16/32/48px) im Ordner-Root, PNGs in 16, 32, 192, 512px sowie ein
   `apple-touch-icon.png` (180px) in `img/`. Entsprechende `<link rel="icon">`-/
   `apple-touch-icon`-Tags im `<head>` ergänzt.
+
+### 2026-08-26 (Google Analytics 4 eingebunden)
+- GA4 (Property `G-VHTRVMJB0K`) per neuer, eigener Cookie-Kategorie "analytics"
+  (vanilla-cookieconsent) eingebunden — `loadGaIfConsented()` laedt gtag.js erst, wenn
+  `CookieConsent.acceptedCategory("analytics")` true ist, analog zum bestehenden
+  `loadHcaptchaIfConsented()`-Muster. Bewusst eine EIGENE Kategorie statt in "functionality"
+  gebuendelt, damit Nutzer:innen hCaptcha/Adobe-XD zustimmen koennen ohne zwingend auch
+  Analytics zu akzeptieren (und umgekehrt) - granularere, rechtlich sauberere Trennung.
+- Consent-Banner-Texte (Haupt-Dialog + Praeferenzen-Modal, neue Sektion "Statistik") nennen
+  Google Analytics explizit beim Namen, wie es die Transparenzpflicht verlangt.
+- CSP (script-src, connect-src, img-src) um googletagmanager.com/google-analytics.com
+  erweitert.
+- datenschutz.html: neuer Abschnitt 5 "Google Analytics (GA4)" (Anbieter, verarbeitete
+  Daten, Rechtsgrundlage Art. 6 Abs. 1 lit. a DSGVO + Paragraf 25 Abs. 1 TDDSG, USA-Transfer
+  via EU-U.S. Data Privacy Framework, Widerrufs-/Opt-out-Hinweis), Folgeabschnitte auf 6-13
+  verschoben, Uebersichtsliste in Abschnitt 2 ergaenzt.
+- **Hinweis:** hCaptcha ist in dieser datenschutz.html (anders als im live/-Ordner) noch
+  nicht als eigener Abschnitt gelistet - das war schon vor dieser Aenderung so und wurde
+  hier bewusst nicht mit erledigt (nicht Teil dieser Aufgabe). Falls gewuenscht, kann das
+  nachgezogen werden.
+- **Noch zu tun (nur du kannst das):** in der GA4-Property die Datenaufbewahrungsdauer (2
+  oder 14 Monate) setzen, falls noch nicht geschehen.
 
 ### 2026-08-03 (Cookie-Consent-CDN: Subresource Integrity nachgezogen)
 - Die beiden jsDelivr-Includes der `vanilla-cookieconsent`-Library (`cookieconsent.css` im

@@ -10,7 +10,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#06060A">
 
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://js.hcaptcha.com https://newassets.hcaptcha.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:; font-src 'self'; connect-src 'self' https://hcaptcha.com https://*.hcaptcha.com https://formspree.io; frame-src https://xd.adobe.com https://newassets.hcaptcha.com https://*.hcaptcha.com; object-src 'none'; base-uri 'self'; form-action 'self' https://formspree.io">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://js.hcaptcha.com https://newassets.hcaptcha.com https://cdn.jsdelivr.net https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https://www.google-analytics.com; font-src 'self'; connect-src 'self' https://hcaptcha.com https://*.hcaptcha.com https://formspree.io https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com; frame-src https://xd.adobe.com https://newassets.hcaptcha.com https://*.hcaptcha.com; object-src 'none'; base-uri 'self'; form-action 'self' https://formspree.io">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 
 <link rel="canonical" href="https://bewerbung.nicworks.de/">
@@ -5971,6 +5971,20 @@ function getCookieConsent() {
     return window.CookieConsent && CookieConsent.acceptedCategory("functionality") ? "all" : "essential";
 }
 
+function loadGaIfConsented() {
+    if (!window.CookieConsent || !CookieConsent.acceptedCategory("analytics")) return;
+    if (document.getElementById("ga-script")) return;
+    const s = document.createElement("script");
+    s.id = "ga-script";
+    s.async = true;
+    s.src = "https://www.googletagmanager.com/gtag/js?id=G-VHTRVMJB0K";
+    document.head.appendChild(s);
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { dataLayer.push(arguments); };
+    gtag('js', new Date());
+    gtag('config', 'G-VHTRVMJB0K');
+}
+
 function initCookieConsent() {
     if (!window.CookieConsent) return;
     CookieConsent.run({
@@ -5992,7 +6006,8 @@ function initCookieConsent() {
             necessary: {
                 readOnly: true
             },
-            functionality: {}
+            functionality: {},
+            analytics: {}
         },
         language: {
             default: "de",
@@ -6000,7 +6015,7 @@ function initCookieConsent() {
                 de: {
                     consentModal: {
                         title: "Cookies &amp; externe Inhalte",
-                        description: 'Diese Seite nutzt technisch notwendige Funktionen ohne Tracking. Optional werden externe Dienste eingebunden: <strong>hCaptcha</strong> (Spamschutz im Kontaktformular, Intuition Machines Inc., USA) und das <strong>Adobe XD</strong>-Prototyp-Embed bei ProteinUp. Beide laden erst nach deiner Zustimmung – Details in der <a href="datenschutz.html">Datenschutzerklärung</a>.',
+                        description: 'Diese Seite nutzt technisch notwendige Funktionen ohne Tracking. Optional werden externe Dienste eingebunden: <strong>hCaptcha</strong> (Spamschutz im Kontaktformular, Intuition Machines Inc., USA), das <strong>Adobe XD</strong>-Prototyp-Embed bei ProteinUp sowie <strong>Google Analytics</strong> (Reichweitenmessung, Google Ireland Limited). Alle laden erst nach deiner Zustimmung – Details in der <a href="datenschutz.html">Datenschutzerklärung</a>.',
                         acceptAllBtn: "Alle akzeptieren",
                         acceptNecessaryBtn: "Nur essenziell",
                         showPreferencesBtn: "Einstellungen verwalten"
@@ -6020,6 +6035,10 @@ function initCookieConsent() {
                             description: "hCaptcha (Spamschutz im Kontaktformular) und das Adobe-XD-Prototyp-Embed. Beide übertragen beim Laden deine IP-Adresse an den jeweiligen Anbieter (USA).",
                             linkedCategory: "functionality"
                         }, {
+                            title: "Statistik",
+                            description: "Google Analytics (GA4) zur anonymisierten Reichweitenmessung, Google Ireland Limited. Überträgt beim Laden deine IP-Adresse (nur kurzzeitig zur groben Standort-Ableitung, keine dauerhafte Speicherung laut Google) an Google.",
+                            linkedCategory: "analytics"
+                        }, {
                             title: "Mehr Informationen",
                             description: 'Details zu den eingebundenen Diensten in der <a href="datenschutz.html">Datenschutzerklärung</a>.'
                         } ]
@@ -6030,10 +6049,12 @@ function initCookieConsent() {
         onConsent: () => {
             loadHcaptchaIfConsented();
             loadAdobeEmbedIfConsented();
+            loadGaIfConsented();
         },
         onChange: () => {
             loadHcaptchaIfConsented();
             loadAdobeEmbedIfConsented();
+            loadGaIfConsented();
         }
     });
 }
