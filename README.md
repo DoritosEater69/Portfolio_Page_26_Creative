@@ -245,6 +245,18 @@ oben. Dieses Log reicht zurück bis zum Beginn des Projekts (übernommen aus `be
 bis zum Einfrieren am 2026-08-19 weitergeführt wurde) — **ab dem 2026-08-19 ist dies der
 aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
 
+### 2026-08-26 (7) (Roll-Effekt extremer)
+- Nic: "Effekt ist top - etwas extremer bitte". Reine Tuning-Aenderung an (6), keine
+  Struktur-/Logikaenderung: `MAX_STRETCH` 3.0 -> 4.4 (staerkere maximale Streckung) und
+  `DOME_MIN` 0.28 -> 0.14 (Raender behalten weniger von der Streckung der Mitte, daher
+  ausgepraegtere Woelbung/Kuppel). Naht- und Kontiguitaets-Eigenschaft aus (6) bleibt
+  unberuehrt (keine Spaltenverschmaelerung, weiterhin keine Aenderung an der Logik selbst).
+- Verifiziert mit demselben Node-Harness wie in (6), Werte neu gemessen: Streckung der
+  Mittelspalte gegenueber Rand jetzt ca. 2.6x (vorher ca. 1.8x), absolute Streckung der
+  obersten Zeile bei vollem Scroll ca. 13px (vorher ca. 9px) - Effekt spuerbar praesenter,
+  Naht-/Luecken-Check weiterhin bestanden (0 Luecken zwischen den 24 Spalten).
+- Weiterhin nicht in einem echten Browser verifizierbar (siehe (2)).
+
 ### 2026-08-26 (6) (LensFX-Verzerrung: "Roll-Effekt" mit gewoelbter Mittel-Oberkante statt Neigung)
 - Nic zum Front-Sweep aus (4): die Schrift soll sich mit der MITTEL-Oberkante immer weiter
   nach oben ausweiten und dann "abrollen" - wie eine Schrift auf einer Rolle, die man auf-
