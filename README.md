@@ -245,6 +245,64 @@ oben. Dieses Log reicht zurück bis zum Beginn des Projekts (übernommen aus `be
 bis zum Einfrieren am 2026-08-19 weitergeführt wurde) — **ab dem 2026-08-19 ist dies der
 aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
 
+### 2026-08-27 (11) (Doppel-/Bruch-Bug beim Rolleneffekt behoben - Text ueberlappt/zerfaellt nie mehr)
+- Nic (mit 3 Referenzbildern + Link auf https://haoqi.design/): "Die schriften sind oft doppelt
+  zu sehen das darf nie passieren... Die duerfen nur einmal da sein und auch nur diese version
+  darf animiert werden - man sieht immernoch stuecke - die schrift darf nie zerbrechen". Als
+  absolute, nicht verhandelbare Anforderung eingestuft ("das darf nie passieren").
+- Root-Cause-Analyse (haoqi.design live per Browser besucht als Qualitaets-Referenz: dort bleibt
+  Text in jedem Zustand scharf/einfach - die eigentliche Latte, kein woertlich zu kopierender
+  Trick) ergab ZWEI unabhaengige Ursachen:
+  1. **Font-Load-Race:** `buildRaster()`s Cache-Signatur basierte nur auf der CSS-Deklaration
+     (`getComputedStyle(el).font`), nicht darauf ob die eigenen Webfonts (Assignate/Fraunces)
+     tatsaechlich fertig geladen waren. Wurde das Canvas VOR dem Font-Load zuerst gezeichnet,
+     blieben Fallback-Font-Glyphen/-Breiten dauerhaft eingebrannt (das separate DOM-<span>
+     reflowt automatisch, das Canvas nicht) - falsche Breiten verschieben auch die Umbruchpunkte.
+  2. **Ueberlappung mit direkt gestapelten Geschwister-Zeilen (Hauptursache):**
+     `.intro-title-text` ("DIGITAL"/"DESIGNER?") und `.hero-name` ("NICLAS"/"KOCH") sind
+     `flex-direction:column` mit `line-height:0.9` - praktisch null natuerlicher Abstand
+     zwischen den gestapelten Zeilen, bei Schriftgroessen bis 432px (per `clamp()`). Der
+     Rolleneffekt liess das Canvas (verankert an `bottom:0`, waechst nach oben) bis zu ~5,24x
+     der natuerlichen Zeilenhoehe wachsen - garantierte massive Ueberlappung in die direkt
+     benachbarte Zeile. Das erklaert den Eindruck von "doppelt"/"kaputt". Kurze Woerter bekamen
+     ausserdem ueberproportional mehr horizontale Spreizung (kleinere `maxLineW` -> groesseres
+     Verhaeltnis in `hSpreadTarget`), was plausibel zu "Stuecke"/"zerbrechen" beitrug.
+- Fix, zwei Ebenen:
+  1. `document.fonts.ready`-Hook (neu, gab es vorher gar nicht im Projekt): sobald die Fonts
+     wirklich fertig geladen sind, `LensFX.invalidateAll()` (neue Funktion, verwirft alle
+     gecachten Raster ueber alle Elemente hinweg via neuem `allStates`-Array) und sofort neu
+     zeichnen - nicht erst beim naechsten Scroll.
+  2. Wachstumskonstanten drastisch reduziert (`MAX_STRETCH` 4,4->1,7, `BOW_MAX` 0,5->0,15,
+     `MAX_HSPREAD` 8->1,35, `CURL_DIP` 0,4->0,28, `CURL_BULGE_MAX` 0,12->0,06). Das allein reicht
+     rechnerisch aber NICHT als Garantie (selbst reduziert waeren es bei 432px noch ~358px
+     zusaetzliches Wachstum gegen nur ~22px neu hinzugefuegten CSS-Abstand) - deshalb zusaetzlich:
+  3. **Neue dynamische Sicherheitsschranke `computeUpwardHeadroom()`:** misst pro Element den
+     kleinsten tatsaechlichen Abstand (`getBoundingClientRect()`) zu allen gleichnamigen
+     Geschwister-Elementen im selben Elternelement, und deckelt das Wachstum JEDES Mitglieds
+     dieser Gruppe symmetrisch auf diesen gemessenen Abstand (mit 15% Sicherheitsmarge). Das ist
+     eine echte, gemessene Garantie - kein Hoffen auf ausreichend kleine Konstanten. Elemente
+     ohne gleichnamiges Geschwister (z. B. das Quote-Highlight, der Followup-Text) sind davon
+     unbetroffen und behalten den vollen (bereits reduzierten) Bewegungsspielraum.
+  4. Kleiner CSS-Puffer `gap:.05em` auf `.intro-title-text` und `.hero-name` ergaenzt (bisher
+     exakt 0 Abstand) - gibt dem Effekt etwas echten Spielraum, zusaetzlich zu (nicht statt) den
+     reduzierten Konstanten.
+- Verifiziert per Node-Harness: neue dedizierte Ueberlappungs-Tests (u. a. mit einem synthetischen
+  "DIGITAL"/"DESIGNER?"-Stack bei 400px Schriftgroesse/line-height 0.9 - genau die Bug-Form -
+  beweisen dass die untere Zeile ihre Canvas-Oberkante rechnerisch NIE ueber die Unterkante der
+  oberen Zeile hinaus wachsen lassen kann; ein Element ohne Geschwister bleibt dabei unangetastet
+  und behaelt seinen vollen Spielraum). Zusaetzlich die kompletten bestehenden Regressionstests aus
+  (9) und (10) (7 + 9 Checks) gegen genau diesen finalen Stand erneut gruen. Ausserdem `node --check`
+  sowohl lokal als auch direkt auf dem Geraet gegen die tatsaechlich gepatchte Datei, sowie ein
+  Identifier-Audit (jede neue Funktion/jeder neue Hook genau einmal vorhanden, keine Duplikate).
+- Wichtig fuer Nic beim Testen: der Effekt wirkt jetzt bewusst deutlich subtiler/zurueckhaltender
+  als vorher (Ausgangspunkt fuer diesen Bug war exakt eine zu aggressive Einstellung in (10)) -
+  ein bewusster Trade-off, um die "darf nie passieren"-Anforderung wirklich zu garantieren statt
+  nur wahrscheinlicher zu machen. Da dies bereits das zweite Mal ist, dass eine sehr weit
+  aufgedrehte Einstellung zu echtem Kaputtgehen gefuehrt hat, und diese Umgebung weiterhin keinen
+  echten Browser-Zugriff auf die eigene Seite hat (nur auf die haoqi.design-Referenz), bitte
+  besonders sorgfaeltig im echten Browser gegenpruefen - vor allem bei den groessten
+  Schriftgroessen (`clamp()`-Obergrenze) und mit langsamer Netzwerkverbindung (Font-Load-Timing).
+
 ### 2026-08-27 (10) (Abroll-Effekt statt reinem Hochziehen an der Rollenkante)
 - Nic: "Die Fonts sollen oben an der Kante in meine Richtung 'abrollen' nicht einfach nur
   hochziehen". Bisher wuchs der Streckungsfaktor pro Zeile/Reihe (`stretch`) rein monoton von 1

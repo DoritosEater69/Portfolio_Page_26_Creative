@@ -591,6 +591,8 @@
     position:absolute; top:29%; left:50%; transform:translate(-50%,-50%);
     z-index:0; width:210%; display:flex; flex-direction:column; align-items:center; justify-content:center;
     overflow:visible; pointer-events:none;
+    gap:.05em; /* 2026-08-27 (11) Nic: Doppel-/Bruch-Bug - kleiner Puffer zwischen "NICLAS"/"KOCH"
+      gegen Ueberlappung beim Rolleneffekt, siehe LensFX-Kommentar */
   }
   .hero-name span{
     font-family:'Assignate', 'Fraunces', serif; font-weight:900;
@@ -671,7 +673,7 @@
     text-align:center; padding: 60px clamp(20px,6vw,64px); box-sizing:border-box;
     will-change: filter, opacity;
   }
-  .intro-title-text{ display:flex; flex-direction:column; align-items:center; margin:0; }
+  .intro-title-text{ display:flex; flex-direction:column; align-items:center; margin:0; gap:.05em; } /* 2026-08-27 (11) Nic: Doppel-/Bruch-Bug - kleiner Puffer zwischen "DIGITAL"/"DESIGNER?" gegen Ueberlappung beim Rolleneffekt, siehe LensFX-Kommentar */
   .intro-title-text span{
     font-family:'Assignate', 'Fraunces', serif; font-weight:900;
     font-size: clamp(calc(var(--fs-scale, 1) * 101px), min(calc(var(--fs-scale, 1) * 24.5vw), calc(var(--fs-scale, 1) * 34.6vh)), calc(var(--fs-scale, 1) * 432px));
@@ -6283,11 +6285,25 @@ const heroNameSpans = heroNameEl.querySelectorAll("span");
 const LensFX = (() => {
     const STRIPS = 40;
     const COLS = 24;
-    const MAX_STRETCH = 4.4;
+    // 2026-08-27 (11) Nic: "Die Schriften sind oft doppelt zu sehen - das darf nie passieren
+    // ... man sieht immer noch Stuecke - die Schrift darf nie zerbrechen". Root cause: bei
+    // gestapelten Geschwister-Spans mit sehr engem line-height (z.B. "DIGITAL"/"DESIGNER?" in
+    // .intro-title-text, "NICLAS"/"KOCH" in .hero-name - beide flex-column mit line-height:0.9,
+    // praktisch ohne Abstand) wuchs das Canvas bisher auf bis zu ~5.2x der Zeilenhoehe
+    // (MAX_STRETCH=4.4, BOW_MAX=0.5) und die Breite bis zu 8x (MAX_HSPREAD=8) - beides bei
+    // KURZEN Woertern ("DIGITAL") sogar noch extremer relativ zur Wortbreite. Das wucherte
+    // zwangslaeufig in die direkt angrenzende Nachbarzeile hinein (kein Puffer vorhanden) und
+    // liess einzelne Buchstaben bei starker horizontaler Spreizung wie separate "Stuecke"
+    // auseinanderbrechen. Alle Wachstums-Konstanten hier drastisch auf einen sicheren Rahmen
+    // reduziert - der Rolleneffekt ist dadurch spuerbar dezenter, dafuer bleibt er garantiert
+    // innerhalb eines Bereichs, der sich mit angrenzenden Zeilen nicht mehr beisst. Siehe auch
+    // die kleine CSS-gap-Ergaenzung bei .intro-title-text/.hero-name (zusaetzlicher Puffer) und
+    // den Font-Race-Fix unten (invalidateAll()).
+    const MAX_STRETCH = 1.7;
     const FRONT_BAND = 0.14;
     const DOME_MIN = 0.14;
-    const BOW_MAX = 0.5;
-    const MAX_HSPREAD = 8;
+    const BOW_MAX = 0.15;
+    const MAX_HSPREAD = 1.35;
     const LINE_OVERLAP = 0.35;
     // 2026-08-27 (10) Nic: "Die Fonts sollen oben an der Kante in meine Richtung 'abrollen'
     // nicht einfach nur hochziehen" - bisher wuchs "stretch" pro Zeile rein monoton von 1 auf
@@ -6301,9 +6317,9 @@ const LensFX = (() => {
     // Hoehenaenderung. Bewusst pro REIHE einheitlich (nicht pro Spalte), damit die Spalten
     // innerhalb einer Reihe exakt luecklos zusammenbleiben (siehe Nic-Fix in (6): "muss IMMER
     // korrekt zusammenbleiben").
-    const CURL_DIP = 0.4;
+    const CURL_DIP = 0.28;
     const CURL_DIP_POS = 0.3;
-    const CURL_BULGE_MAX = 0.12;
+    const CURL_BULGE_MAX = 0.06;
     const DPR = Math.min(window.devicePixelRatio || 1, 2);
 
     let measureCtx = null;
@@ -6311,6 +6327,8 @@ const LensFX = (() => {
         if (!measureCtx) measureCtx = document.createElement("canvas").getContext("2d");
         return measureCtx;
     }
+
+    const allStates = [];
 
     function ensure(el) {
         if (el._lensState) return el._lensState;
@@ -6330,6 +6348,7 @@ const LensFX = (() => {
             sig: "", raster: null, rw: 0, rh: 0, destW: 0, destH: 0, _lastEased: -1
         };
         el._lensState = state;
+        allStates.push(state);
         return state;
     }
 
@@ -6349,6 +6368,26 @@ const LensFX = (() => {
         }
         if (cur) lines.push(cur);
         return lines;
+    }
+
+    function computeUpwardHeadroom(el, naturalTotalH) {
+        const parent = el.parentElement;
+        let minGap = Infinity;
+        if (parent) {
+            const peers = Array.from(parent.children).filter(c => c.tagName === el.tagName);
+            for (let i = 1; i < peers.length; i++) {
+                const aRect = peers[i - 1].getBoundingClientRect();
+                const bRect = peers[i].getBoundingClientRect();
+                const gap = bRect.top - aRect.bottom;
+                if (gap < minGap) minGap = gap;
+            }
+        }
+        if (!isFinite(minGap)) return naturalTotalH * 2.5;
+        // NOTE: do not floor this with naturalTotalH*x - minGap IS the real, measured distance to
+        // the neighboring line; flooring it higher than the true gap is exactly what would let the
+        // canvas grow past the neighbor again. Only guard against a zero/negative (already-touching)
+        // gap so growth degrades to ~0 instead of going negative, rather than inflating past reality.
+        return Math.max(1, minGap);
     }
 
     function buildRaster(el, state, opts) {
@@ -6402,7 +6441,11 @@ const LensFX = (() => {
         const hSpreadTarget = Math.min(MAX_HSPREAD, Math.max(1, spreadTo / maxLineW));
         state.hSpreadTarget = hSpreadTarget;
 
-        const perLineDestH = Math.ceil(lineHeightPx * (1 + (MAX_STRETCH - 1) * 1.1 + BOW_MAX));
+        const naturalTotalH = totalRasterH;
+        const headroom = computeUpwardHeadroom(el, naturalTotalH);
+        const desiredExtraTotal = naturalTotalH * ((MAX_STRETCH - 1) * 1.1 + BOW_MAX);
+        const cappedExtraTotal = Math.max(0, Math.min(desiredExtraTotal, headroom * 0.85));
+        const perLineDestH = Math.ceil((naturalTotalH + cappedExtraTotal) / lineData.length);
         state.perLineDestH = perLineDestH;
         const destH = perLineDestH * lineData.length;
         const destW = Math.ceil(Math.max(w, maxLineW * hSpreadTarget) * 1.06 * (1 + CURL_BULGE_MAX));
@@ -6545,7 +6588,14 @@ const LensFX = (() => {
         state.srcSpan.style.opacity = String(Math.max(0, 1 - canvasOpacity));
     }
 
-    return { update };
+    function invalidateAll() {
+        allStates.forEach(s => {
+            s.sig = "";
+            s._lastEased = -1;
+        });
+    }
+
+    return { update, invalidateAll };
 })();
 
 function updateOnScroll() {
@@ -7143,6 +7193,21 @@ window.addEventListener("resize", () => {
 });
 
 window.addEventListener("load", rebuildZigzagPath);
+
+// 2026-08-27 (11) Nic: "Schriften oft doppelt/kaputt" - einer der Ursachen war ein Font-Load-
+// Race: LensFX rastert Text auf ein Canvas per ctx.font/fillText, aber wenn der erste Aufruf
+// passiert BEVOR die eigenen Webfonts (Assignate/Fraunces) fertig geladen sind, rendert der
+// Browser dabei mit einer Fallback-Schrift - andere Buchstabenbreiten/-formen als das echte
+// Original (das separate DOM-<span> reflowt automatisch sobald der echte Font laedt, das Canvas
+// aber NICHT, weil sein Cache-Schluessel nur die CSS-Deklaration prueft, nicht den Lade-Status).
+// Sobald document.fonts.ready sich aufloest, alle bisherigen LensFX-Raster verwerfen und sofort
+// neu zeichnen (nicht erst beim naechsten Scroll warten).
+if (window.document && document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => {
+        if (typeof LensFX !== "undefined" && LensFX.invalidateAll) LensFX.invalidateAll();
+        updateOnScroll();
+    }).catch(() => {});
+}
 
 requestAnimationFrame(raf);</script>
 
