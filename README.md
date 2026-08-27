@@ -245,6 +245,72 @@ oben. Dieses Log reicht zurück bis zum Beginn des Projekts (übernommen aus `be
 bis zum Einfrieren am 2026-08-19 weitergeführt wurde) — **ab dem 2026-08-19 ist dies der
 aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
 
+### 2026-08-27 (9) (LensFX: frueherer Start, 2-zeiliger Stagger, horizontale Verbreiterung)
+- Nic (3 Punkte in einer Nachricht):
+  1. "Die Animation kann gern etwas frueher starten - so mittig vertikal"
+  2. "Dann soll die Schrift auch wenn sie 2-zeilig ist erst in der oberen Zeile starten und
+     dann in der unteren."
+  3. "Zudem soll die Schrift dann nicht nur horizontal hoch ausweiten sondern auch in die
+     Breite ueber die komplette Sektion"
+- (1) Frueherer Start: bisher lief der LensFX-Fortschritt am selben "prog" wie der Blur/
+  Brightness/Opacity-Fade (startet erst wenn die Oberkante des Elements den Viewport oben
+  verlaesst, `-r.top/(vh*.9)`). Jetzt entkoppelt: ein neuer "lensProg" startet schon, wenn
+  die VERTIKALE MITTE des Elements sich der Viewport-Mitte naehert (`centerCross = r.top +
+  r.height/2 - vh/2`, kleiner Vorlauf-Puffer `vh*.15`). Der Blur/Fade-Effekt selbst laeuft
+  unveraendert am alten "prog" weiter - nur das Lens-Timing wurde vorgezogen.
+  Sonderfall #intro-quote: #intro-quote-pin ist position:sticky, r.top bleibt waehrend der
+  Pin-Phase bei 0 haengen - die Center-Crossing-Formel wuerde dort einfach konstant bleiben.
+  Stattdessen treibt hier der bereits vorhandene Pin-Scroll-Fortschritt (0->1 ueber die
+  Pin-Strecke von #intro-quote-section, vorher lokal fuer den Unterstrich/Dots-Trail
+  "underlineProg" genannt) den Lens-Effekt direkt an - jetzt hochgehievt vor die
+  introScrollFxEls-Schleife als "quotePinProg" und dort UND fuer den Dots-Trail
+  wiederverwendet (vorher zwei getrennte Berechnungen derselben Formel).
+- (2) 2-zeiliger Stagger: LensFX baut sich das Text-Raster jetzt selbst per echtem Wortumbruch
+  (`wrapLines()`, `ctx.measureText()` gegen die tatsaechliche Element-Breite - matched das
+  normale CSS-Verhalten, bricht nur an Leerzeichen). Jede erkannte Zeile bekommt einen eigenen
+  gestaffelten Fortschritt (`lineLocalEased()`): die obere Zeile startet zuerst, mit leichtem
+  Overlap laeuft die untere kurz danach an (kein Totpunkt zwischen den Zeilen), beide sind bei
+  vollem Scroll-Fortschritt fertig. Beim Zeichnen werden die Zeilen von unten nach oben
+  gestapelt (`draw()`), sodass die obere Zeile immer oberhalb der unteren auf dem Canvas
+  landet. Titel- und Hero-Spans sind per CSS `white-space:nowrap` fixiert und bleiben daher
+  immer 1-zeilig - betrifft in der Praxis vor allem Zitat und Folge-Text auf schmaleren
+  Viewports. Bei nur 1 erkannter Zeile verhaelt sich alles exakt wie vorher (keine Regression).
+- (3) Horizontale Verbreiterung: neue Option `spreadTo` (Zielbreite in px, pro Aufrufstelle
+  `r.width * .9` der jeweiligen Sektion) skaliert Spaltenbreite UND -abstand gemeinsam
+  (`hScale`, waechst mit dem Zeilen-Fortschritt bis max. 8x) - dadurch bleibt jede Zeile fuer
+  sich luecklos (gleichmaessige Skalierung eines gekachelten Grids bleibt gekachelt), waechst
+  aber sichtbar in die Breite Richtung Sektionsrand statt nur nach oben.
+- Nebenbefund/Aufraeumen (nicht explizit von Nic verlangt, aber beim Umbau entdeckt): die
+  `bg`/`underline`-Optionen am Zitat-Aufruf sowie die zugehoerige Zeichenlogik in
+  `buildRaster()` waren totes Restlicht von VOR der Entfernung des Amber-Hintergrunds
+  ("Hintergrund weg") bzw. dem Ersetzen des Unterstrichs durch den Dots-Trail -
+  `.intro-quote-highlight` hat laengst keinen Hintergrund mehr, `underline:true` zeichnete
+  aber weiterhin unbeabsichtigt einen Balken ins Canvas-Raster sobald der Effekt einsetzte.
+  Beide entfernt.
+- Verifiziert per Node-DOM/Canvas-Harness (kompletter Rewrite, daher deutlich groesserer
+  Testumfang als bei (6)/(7)/(8)): 1-zeiliger Text bleibt bei breitem Container korrekt
+  1-zeilig; erzwungener Umbruch bei schmalem Container erkennt genau die erwarteten 2 Zeilen;
+  obere Zeile liegt bei jedem Scroll-Fortschritt konsequent vor der unteren (nie umgekehrt);
+  direkte Zeichenpruefung ueber eine Recording-Canvas-Ctx bestaetigt, dass die obere Zeile ihr
+  Zielband auf dem Canvas nie mit dem der unteren ueberlappt; jede Zeile bleibt trotz
+  horizontaler Verbreiterung luecklos ueber alle 24 Spalten; die Verbreiterung vergroessert die
+  Spaltenbreite messbar (z. B. 8.25px natuerlich -> 20.83px bei eased=0.9); 1-zeiliger Fall hat
+  exakt dieselbe Canvas-Hoehe wie vor dem Umbau. Zusaetzlich: der tatsaechlich aus der
+  gepatchten Live-Datei extrahierte LensFX-Code wurde noch einmal separat durch denselben
+  7-Punkte-Test geschickt (nicht nur mein Entwurf) - alle Checks bestanden.
+- Bei `updateOnScroll()` selbst (Verdrahtung von lensProg/quotePinProg/spreadTo, Entfernen der
+  doppelten qsRect/pinRange-Berechnung) ist die Verifikation schwaecher als beim LensFX-Modul
+  selbst: `node --check` (Syntax OK, auch nochmal direkt auf dem Geraet gegengeprueft),
+  Bezeichner-Audit (keine doppelten Deklarationen, `underlineProg`/`bg`/`underline` restlos
+  entfernt) und manuelle Code-Review - aber nicht per Node-Harness einzeln durchgetestet, da zu
+  viele Abhaengigkeiten von anderen Seiten-Globals fuer eine isolierte Simulation.
+- Weiterhin nicht in einem echten Browser verifizierbar (siehe (2)) - das gilt hier besonders
+  stark, weil diese Aenderung deutlich groesser/riskanter ist als die vorherigen drei
+  LensFX-Anpassungen zusammen. Bitte im echten Scrollverhalten gegenpruefen, vor allem: fuehlt
+  sich der frueher startende Effekt gut an (nicht zu frueh/abrupt), staffelt sich der 2-zeilige
+  Text wie erwartet (falls ueberhaupt ein Umbruch auftritt), und wirkt die horizontale
+  Verbreiterung nicht zu extrem/unruhig.
+
 ### 2026-08-26 (8) (Komplette Schrift woelbt sich mittig beim Scrollen, nicht nur die Oberkante)
 - Nic: "Die komplette Schrift darf mittig auch gewoelbt werden beim scroll". Bisher (siehe (6))
   hat sich nur der vom Top-Down-Sweep bereits erfasste obere Teil gewoelbt - die untere

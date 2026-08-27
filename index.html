@@ -6287,7 +6287,15 @@ const LensFX = (() => {
     const FRONT_BAND = 0.14;
     const DOME_MIN = 0.14;
     const BOW_MAX = 0.5;
+    const MAX_HSPREAD = 8;
+    const LINE_OVERLAP = 0.35;
     const DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+    let measureCtx = null;
+    function getMeasureCtx() {
+        if (!measureCtx) measureCtx = document.createElement("canvas").getContext("2d");
+        return measureCtx;
+    }
 
     function ensure(el) {
         if (el._lensState) return el._lensState;
@@ -6310,41 +6318,79 @@ const LensFX = (() => {
         return state;
     }
 
+    function wrapLines(ctx, text, maxWidth) {
+        const words = text.split(" ");
+        if (words.length <= 1) return [text];
+        const lines = [];
+        let cur = "";
+        for (const word of words) {
+            const cand = cur ? cur + " " + word : word;
+            if (cur && ctx.measureText(cand).width > maxWidth) {
+                lines.push(cur);
+                cur = word;
+            } else {
+                cur = cand;
+            }
+        }
+        if (cur) lines.push(cur);
+        return lines;
+    }
+
     function buildRaster(el, state, opts) {
         const rect = el.getBoundingClientRect();
         const cs = getComputedStyle(el);
         const w = Math.max(1, Math.round(rect.width));
-        const h = Math.max(1, Math.round(rect.height));
-        const sig = `${cs.font}|${cs.color}|${el.textContent}|${w}x${h}`;
+        const text = el.textContent;
+        const spreadTo = (opts && opts.spreadTo) || w;
+        const sig = `${cs.font}|${cs.color}|${text}|${w}|${spreadTo}`;
         if (state.sig === sig && state.raster) return;
         state.sig = sig;
-        state.rw = w;
-        state.rh = h;
+
+        const mctx = getMeasureCtx();
+        const font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize}/${cs.lineHeight} ${cs.fontFamily}`;
+        mctx.font = font;
+        const wrapped = wrapLines(mctx, text, w);
+
+        const fontSizePx = parseFloat(cs.fontSize) || 40;
+        let lineHeightPx = parseFloat(cs.lineHeight);
+        if (!cs.lineHeight || !cs.lineHeight.endsWith("px") || !isFinite(lineHeightPx)) {
+            lineHeightPx = fontSizePx * 1.2;
+        }
+
+        const lineData = wrapped.map(lineText => {
+            const lw = Math.max(1, Math.ceil(mctx.measureText(lineText).width));
+            return { text: lineText, w: lw };
+        });
+        const maxLineW = Math.max(...lineData.map(l => l.w));
+        const totalRasterH = lineData.length * lineHeightPx;
+
         const src = document.createElement("canvas");
         src.width = Math.max(1, Math.round(w * DPR));
-        src.height = Math.max(1, Math.round(h * DPR));
+        src.height = Math.max(1, Math.round(totalRasterH * DPR));
         const sctx = src.getContext("2d");
         sctx.scale(DPR, DPR);
-        if (opts && opts.bg) {
-            sctx.fillStyle = opts.bg;
-            sctx.fillRect(0, 0, w, h);
-        }
-        if (opts && opts.underline) {
-            sctx.fillStyle = cs.color;
-            const uH = Math.max(2, h * 0.03);
-            sctx.fillRect(0, h - uH - h * 0.08, w, uH);
-        }
-        sctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize}/${cs.lineHeight} ${cs.fontFamily}`;
+        sctx.font = font;
         sctx.fillStyle = cs.color;
         sctx.textBaseline = "alphabetic";
         sctx.textAlign = "left";
-        // Grobe Baseline-Annaeherung (Ascent ca. 80% der line-height) - reicht fuer diesen
-        // rein dekorativen Warp-Effekt, muss nicht pixelgenau sein.
-        sctx.fillText(el.textContent, 0, h * 0.8);
-        state.raster = src;
+        lineData.forEach((ld, i) => {
+            ld.left = (w - ld.w) / 2;
+            sctx.fillText(ld.text, ld.left, i * lineHeightPx + lineHeightPx * 0.8);
+        });
 
-        const destW = Math.ceil(w * 1.06);
-        const destH = Math.ceil(h * (1 + (MAX_STRETCH - 1) * 1.1 + BOW_MAX));
+        state.raster = src;
+        state.lines = lineData;
+        state.lineHeightPx = lineHeightPx;
+        state.rw = w;
+        state.rh = totalRasterH;
+
+        const hSpreadTarget = Math.min(MAX_HSPREAD, Math.max(1, spreadTo / maxLineW));
+        state.hSpreadTarget = hSpreadTarget;
+
+        const perLineDestH = Math.ceil(lineHeightPx * (1 + (MAX_STRETCH - 1) * 1.1 + BOW_MAX));
+        state.perLineDestH = perLineDestH;
+        const destH = perLineDestH * lineData.length;
+        const destW = Math.ceil(Math.max(w, maxLineW * hSpreadTarget) * 1.06);
         state.destW = destW;
         state.destH = destH;
         state.canvas.width = Math.round(destW * DPR);
@@ -6353,38 +6399,27 @@ const LensFX = (() => {
         state.canvas.style.height = destH + "px";
     }
 
-    function draw(state, eased) {
-        const ctx = state.ctx;
-        const destW = state.destW, destH = state.destH;
-        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-        ctx.clearRect(0, 0, destW, destH);
-        const w = state.rw, h = state.rh;
+    function lineLocalEased(i, n, eased) {
+        if (n <= 1) return eased;
+        const seg = 1 / n;
+        const start = i * seg * (1 - LINE_OVERLAP);
+        const span = seg * (1 + LINE_OVERLAP);
+        return Math.max(0, Math.min(1, (eased - start) / span));
+    }
+
+    function drawLine(ctx, state, lineIdx, eased, destYBottom) {
+        const ld = state.lines[lineIdx];
+        const h = state.lineHeightPx;
+        const w = ld.w;
         const stripH = h / STRIPS;
         const colW = w / COLS;
-        const baseX = (destW - w) / 2;
-        // 2026-08-26 (6) Nic: "die Font soll sich mit der Mittel-Oberkante immer weiter nach
-        // oben ausweiten und dann abrollen - wie eine Schrift auf einer Rolle, die man ab-
-        // oder aufrollt. Die Schrift dabei nicht zerfallen in Stuecke - die muss IMMER korrekt
-        // zusammenbleiben". Der Top-Down-"Front"-Sweep bleibt (Zeilen werden von oben nach
-        // unten nacheinander aktiv), ist jetzt zusaetzlich pro Spalte gewichtet statt ueber die
-        // ganze Zeilenbreite gleich: die MITTLERE Spalte bekommt die volle Streckung, Richtung
-        // Rand nimmt sie nach einer Kosinus-Kurve ab (DOME_MIN = Rest-Anteil am Rand). Jede
-        // Spalte akkumuliert dadurch ihre eigene Hoehe - die mittleren Spalten wachsen schneller
-        // nach oben als die aeusseren, es entsteht eine gewoelbte Oberkante - der Rolleneffekt.
-        // WICHTIG (Nic-Fix): keine horizontale Verschmaelerung (MAX_NARROW) mehr pro Spalte -
-        // das erzeugte transparente Luecken zwischen den Spalten-Slices, die wie zerfallende
-        // Buchstaben-Stuecke aussahen. Jede Spalte ist jetzt exakt colW breit und ohne
-        // Zwischenraum an die naechste angrenzend (dx = baseX + c*colW, dw = colW) - horizontal
-        // bleibt die Schrift damit immer nahtlos zusammenhaengend, nur die Hoehe/Position pro
-        // Spalte variiert (die Woelbung selbst), keine seitlichen Risse.
-        // 2026-08-26 (8) Nic: "die komplette Schrift darf mittig auch gewoelbt werden beim
-        // scroll" - bisher hat sich nur die vom Front-Sweep bereits erfasste Oberkante
-        // gewoelbt, die untere Haelfte/Grundlinie blieb bis zum Schluss praktisch gerade. Fix:
-        // jede Spalte bekommt jetzt ZUSAETZLICH einen eigenen vertikalen Basis-Versatz
-        // (colBottom-Startwert statt 0), der mit dem Scroll-Fortschritt waechst und in der
-        // Mitte am groessten ist (BOW_MAX * dome) - das hebt den GESAMTEN Buchstaben inkl.
-        // Grundlinie in der Mitte an, nicht nur die obere Kante. Die Spalten-Woelbung (dome)
-        // wird dafuer einmal pro Spalte vorab berechnet statt wie bisher pro Zeile neu.
+        const hScale = 1 + (state.hSpreadTarget - 1) * eased;
+        const dwCol = colW * hScale;
+        const lineDestW = w * hScale;
+        const baseX = (state.destW - lineDestW) / 2;
+        const sy0 = lineIdx * h * DPR;
+        const sxBase = ld.left * DPR;
+
         const front = 1 - eased;
         const span = Math.max(1e-4, 1 - front);
         const colDome = new Array(COLS);
@@ -6404,15 +6439,12 @@ const LensFX = (() => {
             const rowAmt = smooth * Math.pow(depth, 1.3);
 
             if (rowAmt < 1e-4) {
-                // Zeile noch komplett unangetastet vom Roll-Sweep - Basis-Versatz (der Bug)
-                // ist aber pro Spalte unterschiedlich, daher weiterhin pro Spalte einzeln
-                // zeichnen (bleibt trotzdem luecklos, da dw immer exakt colW ist).
                 for (let c = 0; c < COLS; c++) {
-                    const dy = destH - colBottom[c] - stripH;
+                    const dy = destYBottom - colBottom[c] - stripH;
                     ctx.drawImage(
                         state.raster,
-                        c * colW * DPR, k * stripH * DPR, colW * DPR, stripH * DPR,
-                        baseX + c * colW, dy, colW, stripH
+                        sxBase + c * colW * DPR, sy0 + k * stripH * DPR, colW * DPR, stripH * DPR,
+                        baseX + c * dwCol, dy, dwCol, stripH
                     );
                     colBottom[c] += stripH;
                 }
@@ -6421,18 +6453,31 @@ const LensFX = (() => {
 
             for (let c = 0; c < COLS; c++) {
                 const localAmt = rowAmt * colDome[c];
-
                 const stretch = 1 + localAmt * (MAX_STRETCH - 1);
                 const dh = stripH * stretch;
-                const dx = baseX + c * colW;
-                const dy = destH - colBottom[c] - dh;
+                const dx = baseX + c * dwCol;
+                const dy = destYBottom - colBottom[c] - dh;
                 ctx.drawImage(
                     state.raster,
-                    c * colW * DPR, k * stripH * DPR, colW * DPR, stripH * DPR,
-                    dx, dy, colW, dh
+                    sxBase + c * colW * DPR, sy0 + k * stripH * DPR, colW * DPR, stripH * DPR,
+                    dx, dy, dwCol, dh
                 );
                 colBottom[c] += dh;
             }
+        }
+    }
+
+    function draw(state, eased) {
+        const ctx = state.ctx;
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        ctx.clearRect(0, 0, state.destW, state.destH);
+        const n = state.lines.length;
+        let yOffsetFromBottom = 0;
+        for (let i = n - 1; i >= 0; i--) {
+            const localEased = lineLocalEased(i, n, eased);
+            const destYBottom = state.destH - yOffsetFromBottom;
+            drawLine(ctx, state, i, localEased, destYBottom);
+            yOffsetFromBottom += state.perLineDestH;
         }
     }
 
@@ -6484,6 +6529,21 @@ function updateOnScroll() {
         let pretitleRectTop = 0, pretitleRectHeight = vh;
         let quoteRectTop = 0, quoteRectHeight = vh;
         let followupRectTop = 0, followupRectHeight = vh;
+        // 2026-08-27 Nic: LensFX soll frueher starten (schon beim vertikalen Zentrieren der
+        // Sektion) statt erst wenn sie oben aus dem Viewport rausscrollt. #intro-quote-pin ist
+        // waehrend der Pin-Phase position:sticky, daher bleibt r.top dort bei 0 haengen - der
+        // Pin-Scroll-Fortschritt wird deshalb hier separat vorab berechnet (Sektionshoehe 200vh
+        // minus Viewport = Pin-Strecke), damit der Lens-Effekt der Quote ueber die GESAMTE
+        // zentrierte Pin-Phase durchlaeuft statt erst danach zu starten. Wird unten sowohl fuer
+        // LensFX.update(introQuoteHighlightEl, ...) als auch fuer den bestehenden
+        // Unterstrich/Dots-Fortschritt (ehemals lokal "underlineProg", jetzt dedupliziert)
+        // wiederverwendet.
+        let quotePinProg = 0;
+        if (introQuoteSectionEl) {
+            const qsRect = introQuoteSectionEl.getBoundingClientRect();
+            const pinRange = qsRect.height - vh;
+            quotePinProg = pinRange > 0 ? Math.max(0, Math.min(1, -qsRect.top / pinRange)) : 1;
+        }
         introScrollFxEls.forEach(el => {
             const r = el.getBoundingClientRect();
             const prog = Math.max(0, Math.min(1, -r.top / (vh * .9)));
@@ -6501,22 +6561,47 @@ function updateOnScroll() {
                     el.style.filter = `blur(${prog * 10}px) brightness(${1 - prog})`;
                     el.style.opacity = String(1 - prog);
                 }
-                // 2026-08-26 (3) Nic: Lens-/Fisheye-Liquify-Effekt fuer die vier grossen
-                // Title-Bereiche - separat vom Blur/Brightness/Opacity-Fade oben, wirkt nur
-                // auf den inneren Text (nicht auf die ganze Sektion/das Hero-Foto). Siehe
-                // LensFX oben im Script (Canvas-basiert statt SVG-Filter).
-                if (el === introTitleEl) {
-                    introTitleSpans.forEach(s => LensFX.update(s, prog));
-                } else if (el === introQuoteEl) {
-                    LensFX.update(introQuoteHighlightEl, prog, {
-                        bg: getComputedStyle(introQuoteHighlightEl).backgroundColor,
-                        underline: true
-                    });
-                } else if (el === introFollowupEl) {
-                    LensFX.update(introFollowupTextEl, prog);
-                } else if (el === heroEl) {
-                    heroNameSpans.forEach(s => LensFX.update(s, prog));
-                }
+            }
+            // 2026-08-27 Nic: LensFX-Timing komplett vom Blur/Fade-Gate oben entkoppelt (eigener
+            // "lensProg"/"quotePinProg" statt des geteilten "prog") - drei Feedback-Punkte:
+            // (1) "Animation kann gern etwas frueher starten - so mittig vertikal": statt erst
+            //     ab r.top<=0 (Oberkante verlaesst Viewport oben) startet der Warp-Effekt schon,
+            //     wenn die vertikale MITTE des Elements sich der Viewport-Mitte naehert
+            //     (centerCross = 0), mit kleinem Vorlauf-Puffer (vh*.15).
+            // (2) Bei introQuoteEl liegt das ANDERS: #intro-quote-pin ist position:sticky, daher
+            //     bleibt r.top waehrend der gesamten Pin-Phase bei 0 haengen - die Center-
+            //     Crossing-Formel wuerde dort einfach konstant bleiben. Stattdessen wird der oben
+            //     vorab berechnete Pin-Scroll-Fortschritt "quotePinProg" (0 -> 1 ueber die
+            //     komplette Pin-Strecke von #intro-quote-section) direkt als Lens-Fortschritt
+            //     verwendet - der Effekt laeuft dadurch stetig ueber die gesamte zentrierte
+            //     Pin-Phase statt erst danach zu starten.
+            // (3) LensFX.update() wird deshalb bewusst AUSSERHALB des obigen "_lastProg"-Gates
+            //     aufgerufen: introQuoteEl's eigener "prog" friert waehrend der Pin-Phase ein,
+            //     wuerde die LensFX-Aktualisierung also faelschlich blockieren. LensFX.update()
+            //     hat intern schon einen eigenen "_lastEased"-Kurzschluss (siehe LensFX oben),
+            //     ein zusaetzliches aeusseres Gate hier ist also unnoetig.
+            // Nic: "soll auch wenn sie 2-zeilig ist erst in der oberen Zeile starten und dann in
+            // der unteren" -> LensFX selbst erkennt jetzt Zeilenumbrueche und staffelt intern
+            // (siehe wrapLines()/lineLocalEased() oben). "nicht nur hoch ausweiten sondern auch
+            // in die Breite ueber die komplette Sektion" -> spreadTo (90% der jeweiligen
+            // Sektionsbreite) an LensFX.update() uebergeben.
+            // Nebenbefund/Aufraeumen: die bisherigen "bg"/"underline"-Optionen beim Quote-Aufruf
+            // waren totes Restlicht von VOR der Entfernung des Amber-Hintergrunds ("Hintergrund
+            // weg") bzw. dem Ersetzen des Unterstrichs durch den Dots-Trail - .intro-quote-
+            // highlight hat laengst keinen Hintergrund mehr, "underline" zeichnete aber
+            // weiterhin unbeabsichtigt einen Balken ins Canvas-Raster. Entfernt.
+            const centerCross = r.top + r.height / 2 - vh / 2;
+            const lensProg = Math.max(0, Math.min(1, (vh * .15 - centerCross) / (vh * .9)));
+            const spreadTo = r.width * .9;
+            if (el === introTitleEl) {
+                introTitleSpans.forEach(s => LensFX.update(s, lensProg, { spreadTo }));
+            } else if (el === introQuoteEl) {
+                const quoteLensProg = introQuoteSectionEl ? quotePinProg : lensProg;
+                LensFX.update(introQuoteHighlightEl, quoteLensProg, { spreadTo });
+            } else if (el === introFollowupEl) {
+                LensFX.update(introFollowupTextEl, lensProg, { spreadTo });
+            } else if (el === heroEl) {
+                heroNameSpans.forEach(s => LensFX.update(s, lensProg, { spreadTo }));
             }
             if (el === heroEl) {
                 heroRectTop = r.top;
@@ -6539,10 +6624,11 @@ function updateOnScroll() {
         // - 100vh Viewport = 100vh); -qsRect.top waechst 0 -> pinRange waehrend genau dieser
         // Zusatzstrecke durchlaufen wird (davor/danach clamped auf 0/1).
         if (introQuoteSectionEl && introQuoteTrailEl) {
-            const qsRect = introQuoteSectionEl.getBoundingClientRect();
-            const pinRange = qsRect.height - vh;
-            const underlineProg = pinRange > 0 ? Math.max(0, Math.min(1, -qsRect.top / pinRange)) : 1;
-            const revealCount = Math.round(underlineProg * introQuoteTrailFull.length);
+            // 2026-08-27: qsRect/pinRange/Pin-Fortschritt jetzt bereits oben vor dem
+            // introScrollFxEls-Loop als "quotePinProg" berechnet (dort fuer LensFX gebraucht) -
+            // hier nur noch wiederverwendet statt ein zweites Mal (als "underlineProg")
+            // berechnet.
+            const revealCount = Math.round(quotePinProg * introQuoteTrailFull.length);
             if (introQuoteTrailEl._lastRevealCount !== revealCount) {
                 introQuoteTrailEl._lastRevealCount = revealCount;
                 introQuoteTrailEl.textContent = introQuoteTrailFull.slice(0, revealCount);
