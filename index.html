@@ -591,8 +591,10 @@
     position:absolute; top:29%; left:50%; transform:translate(-50%,-50%);
     z-index:0; width:210%; display:flex; flex-direction:column; align-items:center; justify-content:center;
     overflow:visible; pointer-events:none;
-    gap:.05em; /* 2026-08-27 (11) Nic: Doppel-/Bruch-Bug - kleiner Puffer zwischen "NICLAS"/"KOCH"
-      gegen Ueberlappung beim Rolleneffekt, siehe LensFX-Kommentar */
+    gap:.16em; /* 2026-08-27 (12) Nic: "nochmal mehr abrollen lassen" - vergroessert von .05em,
+      damit computeUpwardHeadroom() mehr echten Puffer hat und der jetzt staerkere Rolleneffekt
+      zwischen "NICLAS"/"KOCH" auch sichtbar mehr Raum bekommt (weiterhin hart gegen Ueberlappung
+      gedeckelt, siehe LensFX-Kommentar) */
   }
   .hero-name span{
     font-family:'Assignate', 'Fraunces', serif; font-weight:900;
@@ -673,7 +675,7 @@
     text-align:center; padding: 60px clamp(20px,6vw,64px); box-sizing:border-box;
     will-change: filter, opacity;
   }
-  .intro-title-text{ display:flex; flex-direction:column; align-items:center; margin:0; gap:.05em; } /* 2026-08-27 (11) Nic: Doppel-/Bruch-Bug - kleiner Puffer zwischen "DIGITAL"/"DESIGNER?" gegen Ueberlappung beim Rolleneffekt, siehe LensFX-Kommentar */
+  .intro-title-text{ display:flex; flex-direction:column; align-items:center; margin:0; gap:.16em; } /* 2026-08-27 (12) Nic: "nochmal mehr abrollen lassen" - vergroessert von .05em, mehr echter Puffer fuer computeUpwardHeadroom() zwischen "DIGITAL"/"DESIGNER?", weiterhin hart gegen Ueberlappung gedeckelt, siehe LensFX-Kommentar */
   .intro-title-text span{
     font-family:'Assignate', 'Fraunces', serif; font-weight:900;
     font-size: clamp(calc(var(--fs-scale, 1) * 101px), min(calc(var(--fs-scale, 1) * 24.5vw), calc(var(--fs-scale, 1) * 34.6vh)), calc(var(--fs-scale, 1) * 432px));
@@ -6299,10 +6301,10 @@ const LensFX = (() => {
     // innerhalb eines Bereichs, der sich mit angrenzenden Zeilen nicht mehr beisst. Siehe auch
     // die kleine CSS-gap-Ergaenzung bei .intro-title-text/.hero-name (zusaetzlicher Puffer) und
     // den Font-Race-Fix unten (invalidateAll()).
-    const MAX_STRETCH = 1.7;
+    const MAX_STRETCH = 2.6;
     const FRONT_BAND = 0.14;
     const DOME_MIN = 0.14;
-    const BOW_MAX = 0.15;
+    const BOW_MAX = 0.3;
     const MAX_HSPREAD = 1.35;
     const LINE_OVERLAP = 0.35;
     // 2026-08-27 (10) Nic: "Die Fonts sollen oben an der Kante in meine Richtung 'abrollen'
@@ -6317,9 +6319,19 @@ const LensFX = (() => {
     // Hoehenaenderung. Bewusst pro REIHE einheitlich (nicht pro Spalte), damit die Spalten
     // innerhalb einer Reihe exakt luecklos zusammenbleiben (siehe Nic-Fix in (6): "muss IMMER
     // korrekt zusammenbleiben").
-    const CURL_DIP = 0.28;
+    const CURL_DIP = 0.42;
     const CURL_DIP_POS = 0.3;
-    const CURL_BULGE_MAX = 0.06;
+    const CURL_BULGE_MAX = 0.1;
+    // 2026-08-27 (12) Nic: "nochmal mehr abrollen lassen nach oben und unten" - MAX_STRETCH/
+    // BOW_MAX (das Aufrollen nach OBEN, ueber die natuerliche Zeile hinaus) und CURL_DIP (der
+    // Falz nach UNTEN/innen, bevor die Zeile aufrollt) wieder naeher an die urspruenglichen,
+    // deutlicheren Werte herangefahren. Sicher, weil computeUpwardHeadroom() (siehe unten) das
+    // Wachstum nach oben ohnehin IMMER hart auf den echten gemessenen Abstand zur Nachbarzeile
+    // deckelt, unabhaengig davon wie gross diese Konstanten sind - je hoeher man sie dreht, desto
+    // mehr vom TATSAECHLICH vorhandenen Puffer (siehe vergroesserter CSS-gap unten) wird sichtbar
+    // genutzt, ohne dass ein Ueberlappen jemals moeglich wird. CURL_DIP wirkt nur innerhalb der
+    // bestehenden Canvas-Flaeche (Kompression <1) und hat GAR KEINEN Einfluss auf destH/Wachstum
+    // - kann deshalb unabhaengig und ohne jedes Ueberlapp-Risiko erhoeht werden.
     const DPR = Math.min(window.devicePixelRatio || 1, 2);
 
     let measureCtx = null;
@@ -6444,7 +6456,7 @@ const LensFX = (() => {
         const naturalTotalH = totalRasterH;
         const headroom = computeUpwardHeadroom(el, naturalTotalH);
         const desiredExtraTotal = naturalTotalH * ((MAX_STRETCH - 1) * 1.1 + BOW_MAX);
-        const cappedExtraTotal = Math.max(0, Math.min(desiredExtraTotal, headroom * 0.85));
+        const cappedExtraTotal = Math.max(0, Math.min(desiredExtraTotal, headroom * 0.88));
         const perLineDestH = Math.ceil((naturalTotalH + cappedExtraTotal) / lineData.length);
         state.perLineDestH = perLineDestH;
         const destH = perLineDestH * lineData.length;
@@ -6583,9 +6595,10 @@ const LensFX = (() => {
         }
         buildRaster(el, state, opts);
         draw(state, eased);
-        const canvasOpacity = Math.min(1, eased * 5);
-        state.canvas.style.opacity = String(canvasOpacity);
-        state.srcSpan.style.opacity = String(Math.max(0, 1 - canvasOpacity));
+        // 2026-08-27 (12) Nic: "sieht man immernoch beim animationsstart die fonts doppelt" -
+        // hard cut, no blend window (see comment above update()).
+        state.canvas.style.opacity = "1";
+        state.srcSpan.style.opacity = "0";
     }
 
     function invalidateAll() {

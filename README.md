@@ -245,6 +245,65 @@ oben. Dieses Log reicht zurück bis zum Beginn des Projekts (übernommen aus `be
 bis zum Einfrieren am 2026-08-19 weitergeführt wurde) — **ab dem 2026-08-19 ist dies der
 aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
 
+### 2026-08-27 (12) (Rolleneffekt verstaerkt + Doppel-Anzeige beim Animationsstart behoben)
+- Nic (2 Punkte, mit 2 Screenshots): "Immernoch nicht genauso wie ich es will geht aber in die
+  richtige richtung - bei creative die fonts nochmal mehr 'abrollen' lassen nach oben und unten"
+  und "Außerdem sieht man immernoch beim animationsstart die fonts doppelt - das ist noch nicht
+  gut so".
+- **Punkt 2 (kritisch, direkte Fortsetzung von (11)):** Ursache war NICHT mehr die
+  Geschwister-Ueberlappung aus (11), sondern die Ueberblendung selbst: `LensFX.update()` blendete
+  bisher graduell zwischen dem echten DOM-Text (`.lens-src-text`) und dem Canvas
+  (`canvasOpacity = min(1, eased*5)`, Quelltext gegenlaeufig). Jede graduelle Ueberblendung hat
+  zwangslaeufig ein Zeitfenster, in dem BEIDE Versionen gleichzeitig teilweise sichtbar sind - und
+  weil DOM- und Canvas-Rendering unterschiedliche Subpixel-Platzierung/Kantenglaettung haben,
+  liest sich genau das als "doppelt", vor allem ganz am Anfang wenn beide noch ~50/50 sichtbar
+  sind. Verstoss gegen Nics urspruengliche, absolute Anforderung aus (11): "Die duerfen nur
+  einmal da sein und auch nur diese version darf animiert werden".
+- Fix: harter, sofortiger Wechsel statt Ueberblendung - `state.canvas.style.opacity` und
+  `state.srcSpan.style.opacity` werden jetzt nur noch auf exakt "1"/"0" gesetzt, nie einen
+  Zwischenwert. Zu jedem Zeitpunkt ist IMMER genau eine der beiden Versionen sichtbar, nie beide
+  gleichzeitig - mathematisch keine Ueberblend-Luecke mehr moeglich. Keine CSS-`transition` auf
+  Opacity fuer eines der beiden Elemente vorhanden (geprueft) - der harte Wechsel greift also
+  wirklich sofort und wird nicht doch wieder zu einer Blende zurueckgeglaettet. Da das Canvas
+  direkt beim Start (`curlStretch(0)=1`, unverzerrt) fast identisch zum Originaltext aussieht,
+  bleibt der Wechsel optisch nahtlos trotz des harten Cuts.
+- **Punkt 1 (Intensitaet):** die in (11) drastisch reduzierten Wachstumskonstanten waren als
+  Sicherheitsmassnahme noetig, ABER: `computeUpwardHeadroom()` aus (11) deckelt das Wachstum nach
+  oben ohnehin schon IMMER hart auf den echten gemessenen Abstand zur Nachbarzeile - unabhaengig
+  davon wie gross `MAX_STRETCH`/`BOW_MAX` sind. Die Konstanten waren bei "DIGITAL"/"DESIGNER?" und
+  "NICLAS"/"KOCH" also gar nicht mehr die begrenzende Groesse, sondern der (11)-CSS-Puffer
+  (`gap:.05em`, bei 432px nur ~21.6px) - ein Erhoehen der Konstanten allein haette dort UeBERHAUPT
+  KEINE sichtbare Wirkung gehabt. Deshalb zwei Aenderungen zusammen:
+  - `MAX_STRETCH` 1,7->2,6, `BOW_MAX` 0,15->0,3 (Aufrollen nach oben, jetzt wieder deutlich
+    kraeftiger - bleibt trotzdem hart gedeckelt).
+  - `CURL_DIP` 0,28->0,42, `CURL_BULGE_MAX` 0,06->0,1 (Falz nach unten/innen vor dem Aufrollen,
+    deutlich tiefer - unabhaengig sicher, weil `CURL_DIP` NICHT in die destH/Wachstums-Formel
+    einfliesst, siehe Code-Kommentar, sondern nur die Kurvenform INNERHALB der bereits
+    allokierten Canvas-Flaeche beeinflusst).
+  - `gap:.05em` -> `gap:.16em` auf `.intro-title-text` und `.hero-name` - gibt
+    `computeUpwardHeadroom()` echten zusaetzlichen Puffer (bei 432px jetzt ~69px statt ~22px),
+    damit die staerkeren Konstanten dort auch tatsaechlich sichtbar mehr Raum bekommen statt vom
+    alten, winzigen Puffer weiter komplett gedeckelt zu werden.
+  - Sicherheitsmarge in der Deckelung selbst leicht gelockert: `headroom * 0.85` -> `headroom *
+    0.88` (weiterhin 12% echter Puffer, nur nicht mehr ganz so konservativ).
+- Verifiziert per Node-Harness: die komplette bestehende (11)-Ueberlappungspruefung erneut mit den
+  NEUEN, staerkeren Konstanten UND dem neuen, groesseren Gap durchgerechnet - bestaetigt weiterhin
+  keine Ueberlappung bei 432px (mit ~8px Sicherheitsmarge, wie von der 88%-Deckelung erwartet),
+  UND ein neuer expliziter Vergleichs-Check bestaetigt, dass das sichtbare Wachstum jetzt
+  tatsaechlich deutlich groesser ist als der (11)-Basiswert (nicht nur sicher, sondern auch wie
+  gewuenscht spuerbar mehr). Ein Element ohne gestapeltes Geschwister (Zitat-Highlight,
+  Folgetext) bleibt unangetastet und bekommt automatisch den vollen, jetzt groesseren
+  Bewegungsspielraum. Neuer dedizierter Test fuer den Ueberblend-Fix: feiner 0..1-Scroll-Sweep
+  bestaetigt, dass Canvas- und Quelltext-Opacity zu JEDEM Zeitpunkt exakt komplementaer auf 0/1
+  stehen, niemals beide gleichzeitig einen Zwischenwert haben. Dazu die kompletten bestehenden
+  Regressionssuiten aus (9)/(10) erneut vollstaendig gruen gegen genau diesen Stand. `node --check`
+  lokal und direkt auf dem Geraet, Identifier-Audit ohne Duplikate.
+- Weiterhin nicht im echten Browser verifizierbar (siehe (2)) - insbesondere der "wie fuehlt sich
+  der Wechsel beim Animationsstart optisch an"-Eindruck laesst sich nur durch echtes Scrollen im
+  Browser wirklich beurteilen. Falls die Intensitaet noch nicht genau passt: `MAX_STRETCH`/
+  `BOW_MAX` (Hoehe des Aufrollens), `CURL_DIP` (Tiefe des Falzes) und der `gap`-Wert auf
+  `.intro-title-text`/`.hero-name` (verfuegbarer Puffer dafuer) sind die drei Stellschrauben.
+
 ### 2026-08-27 (11) (Doppel-/Bruch-Bug beim Rolleneffekt behoben - Text ueberlappt/zerfaellt nie mehr)
 - Nic (mit 3 Referenzbildern + Link auf https://haoqi.design/): "Die schriften sind oft doppelt
   zu sehen das darf nie passieren... Die duerfen nur einmal da sein und auch nur diese version
