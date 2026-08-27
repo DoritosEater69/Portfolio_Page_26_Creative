@@ -6289,6 +6289,21 @@ const LensFX = (() => {
     const BOW_MAX = 0.5;
     const MAX_HSPREAD = 8;
     const LINE_OVERLAP = 0.35;
+    // 2026-08-27 (10) Nic: "Die Fonts sollen oben an der Kante in meine Richtung 'abrollen'
+    // nicht einfach nur hochziehen" - bisher wuchs "stretch" pro Zeile rein monoton von 1 auf
+    // MAX_STRETCH, das fuehlte sich wie simples Hochziehen/Dehnen an statt wie ein Abrollen.
+    // Jetzt zuerst ein kurzer "Falz" (Kompression unter 1 - wirkt, als wuerde die Zeile ueber
+    // die Rollenkante wegklappen/zuruecktreten), danach erst das eigentliche Aufrollen Richtung
+    // Betrachter (Wachstum bis MAX_STRETCH) - siehe curlStretch() unten. CURL_BULGE_MAX steuert
+    // eine dazu synchron laufende, pro Zeile (Reihe) EINHEITLICHE Breiten-Verschmaelerung/
+    // -Verbreiterung (curlBulge()) - beim Zurueckklappen leicht schmaler, beim Herausrollen
+    // leicht breiter -, verstaerkt den Eindruck von "kommt auf dich zu" zusaetzlich zur
+    // Hoehenaenderung. Bewusst pro REIHE einheitlich (nicht pro Spalte), damit die Spalten
+    // innerhalb einer Reihe exakt luecklos zusammenbleiben (siehe Nic-Fix in (6): "muss IMMER
+    // korrekt zusammenbleiben").
+    const CURL_DIP = 0.4;
+    const CURL_DIP_POS = 0.3;
+    const CURL_BULGE_MAX = 0.12;
     const DPR = Math.min(window.devicePixelRatio || 1, 2);
 
     let measureCtx = null;
@@ -6390,7 +6405,7 @@ const LensFX = (() => {
         const perLineDestH = Math.ceil(lineHeightPx * (1 + (MAX_STRETCH - 1) * 1.1 + BOW_MAX));
         state.perLineDestH = perLineDestH;
         const destH = perLineDestH * lineData.length;
-        const destW = Math.ceil(Math.max(w, maxLineW * hSpreadTarget) * 1.06);
+        const destW = Math.ceil(Math.max(w, maxLineW * hSpreadTarget) * 1.06 * (1 + CURL_BULGE_MAX));
         state.destW = destW;
         state.destH = destH;
         state.canvas.width = Math.round(destW * DPR);
@@ -6405,6 +6420,34 @@ const LensFX = (() => {
         const start = i * seg * (1 - LINE_OVERLAP);
         const span = seg * (1 + LINE_OVERLAP);
         return Math.max(0, Math.min(1, (eased - start) / span));
+    }
+
+    // Non-monotone "roll toward viewer" stretch profile: dips below 1 first (folding over the
+    // roll edge, receding) then rises to MAX_STRETCH (unrolling toward the viewer). localAmt is
+    // the existing 0..1 activation value (rowAmt * per-column dome weight).
+    function curlStretch(localAmt) {
+        if (localAmt <= 0) return 1;
+        if (localAmt >= 1) return MAX_STRETCH;
+        if (localAmt < CURL_DIP_POS) {
+            const t = localAmt / CURL_DIP_POS;
+            const e = t * t * (3 - 2 * t);
+            return 1 - CURL_DIP * e;
+        }
+        const t = (localAmt - CURL_DIP_POS) / (1 - CURL_DIP_POS);
+        const e = t * t * (3 - 2 * t);
+        return (1 - CURL_DIP) + e * (MAX_STRETCH - (1 - CURL_DIP));
+    }
+
+    // Row-uniform width multiplier paired with curlStretch(): narrows a bit while folding over
+    // (stretch < 1, receding), widens a bit while unrolling toward the viewer (stretch > 1,
+    // approaching) - a rough "bigger when closer" cue to reinforce the roll direction.
+    function curlBulge(stretchVal) {
+        if (stretchVal >= 1) {
+            const f = Math.min(1, (stretchVal - 1) / (MAX_STRETCH - 1));
+            return 1 + f * CURL_BULGE_MAX;
+        }
+        const f = Math.min(1, (1 - stretchVal) / CURL_DIP);
+        return 1 - f * CURL_BULGE_MAX * 0.6;
     }
 
     function drawLine(ctx, state, lineIdx, eased, destYBottom) {
@@ -6451,16 +6494,19 @@ const LensFX = (() => {
                 continue;
             }
 
+            const rowBulge = curlBulge(curlStretch(rowAmt));
+            const rowDwCol = dwCol * rowBulge;
+            const rowBaseX = baseX + (lineDestW - lineDestW * rowBulge) / 2;
             for (let c = 0; c < COLS; c++) {
                 const localAmt = rowAmt * colDome[c];
-                const stretch = 1 + localAmt * (MAX_STRETCH - 1);
+                const stretch = curlStretch(localAmt);
                 const dh = stripH * stretch;
-                const dx = baseX + c * dwCol;
+                const dx = rowBaseX + c * rowDwCol;
                 const dy = destYBottom - colBottom[c] - dh;
                 ctx.drawImage(
                     state.raster,
                     sxBase + c * colW * DPR, sy0 + k * stripH * DPR, colW * DPR, stripH * DPR,
-                    dx, dy, dwCol, dh
+                    dx, dy, rowDwCol, dh
                 );
                 colBottom[c] += dh;
             }

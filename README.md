@@ -245,6 +245,46 @@ oben. Dieses Log reicht zurück bis zum Beginn des Projekts (übernommen aus `be
 bis zum Einfrieren am 2026-08-19 weitergeführt wurde) — **ab dem 2026-08-19 ist dies der
 aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
 
+### 2026-08-27 (10) (Abroll-Effekt statt reinem Hochziehen an der Rollenkante)
+- Nic: "Die Fonts sollen oben an der Kante in meine Richtung 'abrollen' nicht einfach nur
+  hochziehen". Bisher wuchs der Streckungsfaktor pro Zeile/Reihe (`stretch`) rein monoton von 1
+  auf `MAX_STRETCH`, sobald eine Reihe vom Sweep aktiviert wurde - fuehlte sich wie einfaches
+  Dehnen/Hochziehen an statt wie ein Abrollen ueber eine Kante.
+- Umsetzung (`curlStretch()`, neue Funktion in LensFX): der Streckungsfaktor folgt jetzt einem
+  nicht-monotonen Verlauf - zuerst ein kurzer "Falz" (kompimiert unter 1, auf `1 - CURL_DIP`
+  bei `localAmt = CURL_DIP_POS`, wirkt wie ein Wegklappen/Zuruecktreten ueber die Rollenkante),
+  danach erst das eigentliche Aufrollen Richtung Betrachter (Wachstum von dort bis
+  `MAX_STRETCH` bei voller Aktivierung). Die Endpunkte (`localAmt=0` -> 1, `localAmt=1` ->
+  `MAX_STRETCH`) sind exakt dieselben wie vorher - der fertig durchgescrollte Zustand sieht also
+  aehnlich aus wie bisher, nur der WEG dorthin zeigt jetzt eine echte Rollbewegung statt eines
+  linearen Ziehens.
+- Dazu synchron eine neue, pro REIHE (nicht pro Spalte) einheitliche Breitenaenderung
+  (`curlBulge()`): waehrend des Falzes leicht schmaler (bis -7,2%), waehrend des Herausrollens
+  leicht breiter (bis +12%) - verstaerkt den "kommt auf dich zu"-Eindruck zusaetzlich zur
+  Hoehenaenderung. Bewusst pro Reihe EINHEITLICH statt pro Spalte, weil unterschiedliche Breiten
+  innerhalb derselben Reihe die Spalten auseinanderreissen wuerden (siehe Nic-Fix in (6): "muss
+  IMMER korrekt zusammenbleiben") - eine einheitliche Skalierung einer bereits gekachelten Reihe
+  bleibt dagegen garantiert luecklos, jede Reihe wird ausserdem neu um dieselbe Zeilenmitte
+  zentriert (kein horizontales Verrutschen durch die Verbreiterung).
+- `destW`-Sicherheitsspanne in `buildRaster()` von `* 1.06` auf `* 1.06 * (1 + CURL_BULGE_MAX)`
+  erweitert, damit die zusaetzliche Verbreiterung nicht am Canvas-Rand abgeschnitten wird -
+  reine Vergroesserung des Canvas, kein Verhalten aendert sich dadurch sonst.
+- Verifiziert per Node-Harness (9 neue Checks speziell fuer den Kurven-/Roll-Verlauf, zusaetzlich
+  zum kompletten bestehenden 7-Punkte-Test aus (9), der unveraendert weiterhin gruen ist): echte
+  Nicht-Monotonie ueber einen feinen Sweep bestaetigt (Falz sichtbar unter 1, danach Anstieg
+  zurueck durch 1 bis MAX_STRETCH), Endpunkte exakt wie vorher, jede Reihe bleibt trotz der neuen
+  Breitenaenderung ueber alle 24 Spalten luecklos, die Breite variiert tatsaechlich messbar von
+  Reihe zu Reihe (kein toter Code), Canvas-Sicherheitsspanne wurde tatsaechlich vergroessert.
+  Ausserdem noch einmal direkt gegen den aus der gepatchten Datei extrahierten Code
+  gegengeprueft (byte-identisch zum getesteten Entwurf) sowie `node --check` lokal und nochmal
+  direkt auf dem Geraet.
+- Weiterhin nicht in einem echten Browser verifizierbar (siehe (2)) - das gilt hier besonders,
+  weil "fuehlt sich wie ein Abrollen an" letztlich ein Bewegungseindruck ist, den nur echtes
+  Scrollen bestaetigen kann. Falls der Falz zu stark/schwach wirkt oder zu frueh/spaet im
+  Aktivierungsbereich sitzt, laesst sich das ueber `CURL_DIP` (Staerke des Falzes),
+  `CURL_DIP_POS` (wo im 0..1-Aktivierungsbereich der Falz liegt) und `CURL_BULGE_MAX` (Staerke
+  der Breitenaenderung) feinjustieren.
+
 ### 2026-08-27 (9) (LensFX: frueherer Start, 2-zeiliger Stagger, horizontale Verbreiterung)
 - Nic (3 Punkte in einer Nachricht):
   1. "Die Animation kann gern etwas frueher starten - so mittig vertikal"
