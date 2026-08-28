@@ -245,6 +245,562 @@ oben. Dieses Log reicht zurück bis zum Beginn des Projekts (übernommen aus `be
 bis zum Einfrieren am 2026-08-19 weitergeführt wurde) — **ab dem 2026-08-19 ist dies der
 aktuelle, aktiv weitergeführte Log der Weiterentwicklung in `creative/`.**
 
+### 2026-08-28 (26) (Pulshoehepunkt faerbt sich in Marken-Gelb ein)
+- Nic: "Der Pulse soll auch das Gelb bekommen was wir nutzen."
+- Marken-Gelb der Seite ist `--amber: #FFE500` (CSS-Variable, u. a. fuer "NICLAS KOCH" im
+  Dark-Theme, Cursor-Glow, diverse Akzente - siehe `:root` in der CSS). GLSL kann keine
+  CSS-Variable lesen, deshalb fest als `vec3(1.0, 0.898, 0.0)` (normierte #FFE500) im Shader
+  eingetragen.
+- Faerbt den Ring gezielt nur WAEHREND eines Pulses ein (`pulse()` aus (23)) statt permanent -
+  `col = mix(col, amberPulse, pulseVal*0.7)` nach der bestehenden Blau-Weiss-Verlaufsfarbe. Der
+  Faktor `*0.7` statt `*1.0` laesst am Pulshoehepunkt noch etwas der blau-weissen Grundfarbe
+  durchscheinen, statt komplett auf Gelb umzuschalten - reines Gelb ohne jede Beimischung haette
+  eher nach einem Farbwechsel als nach einem "aufgeladenen" Blitz-Höhepunkt gewirkt. Da
+  `pulseVal` die meiste Zeit nahe 0 liegt (siehe (23)), ist der Ring meistens unveraendert
+  blau-weiss und faerbt sich nur kurz zum Puls-Peak hin gelb ein.
+- Trivial bounds-safe (lineares `mix` zwischen zwei bereits [0,1]-begrenzten Farben mit bereits
+  aus (23) verifiziertem [0,1]-begrenztem `pulseVal`) - kein zusaetzlicher Node-Harness noetig,
+  `node --check` gegen den kompletten Haupt-Script-Block sowie GLSL-Klammer-Balance erneut
+  bestaetigt.
+- Weiterhin nicht im echten Browser verifizierbar (siehe (2)) - ob `*0.7` die richtige Mischung
+  ist oder der Puls-Peak noch satter/reiner gelb werden soll, laesst sich nur am Bildschirm
+  beurteilen. Stellschraube: der `0.7`-Faktor in `col = mix(col, amberPulse, pulseVal*0.7)`.
+
+### 2026-08-28 (25) (Ring-Optik ueberarbeitet: weg von "trashig/unnatuerlich", hin zu echtem Plasma/Blitz)
+- Nic: "Die Animation wirkt noch etwas trashig/unnatuerlich - orientiere dich an echtem
+  Plasma/Blitzen." Kein neuer Referenzlink diesmal - stattdessen die zwei strukturellen Gruende
+  identifiziert, warum es bisher eher wie ein animierter Neon-Reifen als wie ein Lichtbogen
+  wirkte, und gezielt behoben:
+  1. **Zu runde/wellige Verformung.** `ringDisp()` nutzte bisher ausschliesslich normales
+     Value-Noise (`fbm21`) - das erzeugt von Natur aus SANFTE, runde Wellen. Echte Blitze/
+     Lichtboegen sind dagegen SCHARF/eckig mit ploetzlichen Richtungswechseln. Neue
+     `ridgeN()`/`ridgedFbm()`: faltet das Value-Noise um seinen Mittelpunkt
+     (`1.0 - abs(n*2.0-1.0)`) - ein Standardtrick, der aus runden Huegeln scharfe Kaemme/Falten
+     macht (dieselbe Technik, mit der Shader ueblicherweise Gebirgskaemme oder eben Blitze
+     erzeugen). `ringDisp()` nutzt das jetzt fuer die beiden schnelleren Detail-Oktaven, nur die
+     langsame Grundbewegung bleibt sanftes `fbm21` (fuer eine ruhige Basis-Position statt eines
+     komplett zappelnden Rings). Per Node-Harness gemessen (Rauheit = mittlere Betrag der
+     zweiten Ableitung entlang des Winkels): die neue Version ist ~2x "rauer/kantiger" als die
+     alte (0.0173 vs. 0.0088).
+  2. **Durchgehend gleichmaessig hell.** Der Ring leuchtete bisher komplett rundherum, nur die
+     HELLIGKEIT wurde sanft moduliert (0.6-1.0) - wirkt wie ein Neon-Reifen, nicht wie eine echte
+     Entladung (die nur an TEILEN ihres Pfads gerade "heiss" ist, andere Abschnitte sind
+     zwischenzeitlich komplett dunkel). Neues `segGate`: dieselbe Rauschfunktion, aber scharf
+     zwischen an/aus geschnitten (`smoothstep(0.34, 0.52, ...)` statt der vorherigen weichen
+     0.6-1.0-Blende) - erzeugt echte LUECKEN statt nur Helligkeitsschwankungen. Per Node-Harness
+     bestaetigt: ~19% aller Winkel-/Zeit-Samples sind jetzt komplett dunkel (vorher: nie, nur
+     gedimmt). `crackle` bleibt als feinere, schnellere Modulation ZUSAETZLICH bestehen (jetzt
+     auf die bereits geloecherte Basis angewandt) - Knistern innerhalb der noch aktiven
+     Segmente.
+  3. **Nebenbei:** globaler `pulse()`-Helligkeits-Einfluss reduziert (Minimum 0.62->0.8) - das
+     grossflaechige, gleichmaessige "Atmen" wirkte selbst schon zu ruhig/organisch; `segGate`
+     uebernimmt jetzt den groesseren Teil des "lebendig" wirkenden Flackerns. Kern-/Glow-Breite
+     nochmal verduennt (1.4/10 -> 0.9/6.5 CSS-px) fuer einen haerteren, kontrastreicheren
+     "heissen Draht" statt eines weich verlaufenden Leuchtstreifens. Farbverlauf leicht Richtung
+     violett-weiss bei hoechster Intensitaet verschoben (`vec3(0.98,0.94,1.0)` statt reinem Weiss)
+     - dezenter Nick zu den violetten Spektrallinien echter Hochspannungslichtboegen (ionisierte
+     Luft/Stickstoff).
+- Verifiziert per Node-Harness (siehe (2) - weiterhin kein echter Browser/keine GPU hier):
+  Rauheits-Vergleich alt/neu wie oben, `segGate`-Luecken-Anteil wie oben, komplette main()-Pipeline
+  bei `radius=80` bleibt ueber einen breiten Zeit-/Winkel-/Radius-Sweep in `[0,1]` geklemmt ohne
+  NaNs, Ring bleibt trotz der neuen Luecken in JEDEM der 80 gesampleten Zeitpunkte irgendwo
+  sichtbar (Luecken wandern, der GESAMTE Ring ist nie gleichzeitig komplett dunkel). Zusaetzlich
+  der reine GLSL-Quelltext extrahiert und auf balancierte Klammern geprueft sowie `node --check`
+  gegen den kompletten Haupt-Script-Block.
+- Weiterhin nicht im echten Browser/nicht mit echter GPU verifizierbar (siehe (2)) - ob es sich
+  jetzt tatsaechlich "weniger trashig" anfuehlt, laesst sich nur am Bildschirm beurteilen.
+  Stellschrauben: die `smoothstep(0.34,0.52,...)`-Grenzen in `segGate` (schmaler = mehr/kuerzere
+  Luecken), die Ridge-Frequenzen `9.0`/`22.0` in `ringDisp()` (Zackigkeit), `u_coreWidth`/
+  `u_glowWidth` (0.9/6.5, Kontrast/Duenn-heit der Linie).
+
+### 2026-08-28 (24) (Hover-Effekt an Bildkanten gebunden + winzige Mikro-Blitze)
+- Nic: "Der Effekt dürfe immer nur an der Kante des Gesichts / des Inhalts des Bilds
+  funktionieren. Derzeit liegt es auf dem kompletten Bereich." Direkt danach ergaenzt: "Noch
+  realistischer machen mit winzigen Blitzen - nimm dir gern noch andere Render dazu von der
+  Seite." (Shadertoy) - zweiter Punkt diesmal ohne erneute Browser-Recherche umgesetzt (siehe
+  unten), da die bereits aus (22) uebernommene Distanz-zu-gezackter-Linie-Technik direkt fuer
+  kurze Mikro-Funken wiederverwendbar war.
+- **Kanten-Bindung (Punkt 1):** bisher loeste JEDE Cursor-Position ueber dem Foto den Hover-
+  Effekt aus. Es gibt keine echte Gesichtserkennung in dieser Umgebung, aber eine generische
+  Kantenerkennung auf dem Foto selbst kommt dem sehr nahe: bei einem Portrait mit vergleichsweise
+  ruhigem Hintergrund liegen die staerksten Helligkeits-Gradienten fast immer genau auf der
+  Silhouette (Haaransatz, Kontur, Kragen), nicht auf den flachen Innenflaechen. Neue
+  `buildHeroEdgeMap()`: zeichnet das Foto einmalig (bei Laden) heruntergerechnet auf 160px Breite
+  auf ein Offscreen-Canvas, berechnet daraus per einfachem Sobel-aehnlichen Gradienten
+  (Helligkeitsdifferenz zum rechten + zum unteren Nachbarn, kombiniert per Pythagoras) eine
+  Kantenkarte, normiert auf die staerkste im Bild vorkommende Kante. `heroEdgeStrengthAt()`
+  rundet die Cursor-Position auf diese Karte um und nimmt den staerksten Wert in einer
+  5x5-Nachbarschaft (nicht nur den exakten Pixel - "nah an der Kante" soll genauso zaehlen wie
+  "exakt drauf"). Der `mousemove`-Handler prueft das VOR dem Setzen von `--hero-mask-x/-y/-r` -
+  unter `HERO_EDGE_THRESHOLD` (0.16) bleibt die Maske geschlossen und der Spark-Effekt aus, ganz
+  genauso wie beim `mouseleave`. Schlaegt `getImageData` fehl (z. B. falls das Bild aus
+  irgendeinem Grund als "tainted" gilt), faellt `heroEdgeStrengthAt()` auf "ueberall erlaubt"
+  zurueck (alter Zustand) statt den Hover-Effekt komplett zu deaktivieren.
+- **Mikro-Blitze (Punkt 2):** neue `microSparks()`-Funktion im Shader - fuenf kurzlebige Funken,
+  die einzeln an zufaelligen Winkeln kurz vom aktuellen Ring nach aussen abzweigen und sofort
+  wieder verschwinden, statt eine stehende Linie zu bilden. Jeder der 5 "Slots" bekommt per
+  `hash21()` alle ~1/6.5s (`floor(time*6.5+...)`) einen neuen zufaelligen Winkel + Laenge
+  zugewiesen, eine `life()`-Huelle rampt dabei nur in den ersten 6% des Slots hoch und ist bei 30%
+  schon wieder komplett aus - daher "Aufblitzen" statt Dauerlinie, aehnlich kleiner
+  Sekundaerentladungen an einem Hauptlichtbogen. Bewusst kein GLSL `continue`/`break` in der
+  Schleife (auf manchen aelteren GPU-Treibern riskant) - inaktive Slots tragen einfach mit
+  `life=0` nichts bei, statt uebersprungen zu werden.
+- Verifiziert per Node-Harness (siehe (2) fuer den Grund - weiterhin kein echter Browser/keine
+  echte GPU hier):
+  - Kantenerkennung: an einem synthetischen Testbild (heller Kreis auf dunklem Hintergrund, wie
+    eine grob vereinfachte Silhouette) liefert die Kantenkarte exakt das erwartete Muster - 0.000
+    in flachen Bereichen (Kreismitte UND weit ausserhalb), 0.707 direkt auf der Kreiskontur;
+    Schwellenwert-Test bestaetigt: Hover erlaubt an der Kante, blockiert in der Mitte UND weit
+    aussen.
+  - Mikro-Blitze: JS-Portierung von `microSparks()` bleibt ueber einen breiten Zeit-/Winkel-/
+    Radius-Sweep ohne NaNs, taucht nur in ~21% der gesampleten Zeitpunkte ueberhaupt sichtbar auf
+    (bestaetigt das kurze Aufblitzen statt Dauerpraesenz).
+  - Zusaetzlich der reine GLSL-Quelltext extrahiert und auf balancierte Klammern geprueft sowie
+    `node --check` gegen den kompletten Haupt-Script-Block.
+- Weiterhin nicht im echten Browser verifizierbar (siehe (2)) - das trifft hier besonders auf die
+  Kantenerkennung zu: ob `HERO_EDGE_THRESHOLD` (0.16) fuer DIESES konkrete Foto (`img/nic.webp`)
+  gut zwischen "Silhouette" und "Rauschen in eher flachen Bereichen" unterscheidet, laesst sich
+  nur am echten Bild beurteilen - zu niedrig gewaehlt wirkt es kaum anders als vorher (ueberall
+  erlaubt), zu hoch gewaehlt findet man kaum noch eine Stelle, die triggert.
+
+### 2026-08-27 (23) (Kreis auf 80px verkleinert + realistischerer Pulse-Effekt)
+- Nic: "kleinerer Kreis - 80px groß - realistischerer Pulse-Effekt."
+- `HERO_MASK_RADIUS` 130 -> 80 (einzige Quelle, treibt sowohl das transparente Loch im Foto als
+  auch `u_radius` im Ring-Shader - beide bleiben automatisch synchron). `u_coreWidth`/
+  `u_glowWidth` proportional mitskaliert (Faktor ~0.62, 2.2/16 -> 1.4/10 CSS-px), sonst wirkt die
+  Linie auf dem kleineren Kreis unverhaeltnismaessig dick.
+- **Pulse-Effekt:** vorher gab es nur die (bereits vorhandene) hochfrequente `crackle`-Modulation
+  fuers feine Flackern, aber kein eigenes rhythmisches "Aufflammen" der Gesamthelligkeit. Neue
+  `pulse(t)`-Funktion, bewusst NICHT als einfaches `sin(time)` (wirkt mechanisch/robotisch fuer
+  eine echte Entladung): (1) die Pulsfrequenz driftet selbst leicht ueber eine sehr langsame
+  fbm21-Zeitskala (~alle 1.3-1.65s statt exakt metronomisch) statt eine feste Periode zu haben,
+  (2) die Kurvenform ist per zwei `smoothstep`s bewusst ASYMMETRISCH geformt (schnelles Aufflammen
+  ueber die ersten 12% der Periode, langsameres Abklingen ueber die restlichen 88%) statt einer
+  symmetrischen Sinuswelle, (3) zusaetzlich per `pow(...,1.6)` leicht zugespitzt. `pulseVal`
+  moduliert danach zwei Dinge gleichzeitig: die Gesamthelligkeit (`v *= mix(0.62, 1.0, pulseVal)`
+  - der Ring wird nie ganz unsichtbar, schwillt aber sichtbar auf) UND den Ring-Radius selbst
+  minimal (`breatheR = u_radius * (1.0 + pulseVal*0.05)`, ±5% "Atmen" der Ringgroesse im Takt des
+  Pulses) - beides zusammen wirkt naeher an einer echten Entladungs-Schwankung als reine
+  Helligkeit allein.
+- Verifiziert per Node-Harness (JS-Portierung von `pulse()` und der kompletten Ring-Formel bei
+  `radius=80`, da diese Umgebung weiterhin weder echten Browser noch WebGL hat - siehe (2)):
+  `pulse()` bleibt in `[0,1]`, keine NaNs, echte Spitzen mit natuerlich schwankendem Abstand
+  (1.33s-1.65s über 14 gemessene Pulse, nicht perfekt periodisch). Kombinierte Ring+Pulse-Formel
+  bei `radius=80` bleibt ueber einen breiten Zeit-/Winkel-/Radius-Sweep in `[0,1]` geklemmt, in
+  JEDEM der 80 gesampleten Zeitpunkte ist der Ring nahe `radius=80` sichtbar. Zusaetzlich der
+  reine GLSL-Quelltext extrahiert und auf balancierte Klammern geprueft sowie `node --check`
+  gegen den kompletten Haupt-Script-Block.
+- Weiterhin nicht im echten Browser/nicht mit echter GPU verifizierbar (siehe (2)). Stellschrauben:
+  die `0.55`/`0.12`/`1.6`-Werte in `pulse()` (Grundtempo/Attack-Anteil/Spitzigkeit), `0.62` in der
+  Helligkeits-Modulation (wie dunkel der Ring zwischen zwei Pulsen minimal wird) und `0.05` im
+  `breatheR`-Faktor (wie stark der Radius mitatmet).
+
+### 2026-08-27 (22) (Von radialen "Blitz-Armen" zu einem echten, in einen Ring gebogenen Lichtbogen)
+- Nic: "Das sollen keine Blitze von center sein - mehr ein Kreis aus dieser Linie - viel
+  realistischer - falls du kannst nutz diesen Shader und bieg ihn wie einen Kreis", dann live
+  ergaenzt um einen zweiten, noch treffenderen Referenzlink
+  (shadertoy.com/view/Nf3SWf, "Play Plasma 3" von JJCreate) und "nutze auch gern andere Tools um
+  das zu bauen."
+- **Recherche per Browser-Tool statt Blindraten:** shadertoy.com blockt normale HTTP-Abrufe
+  (403/Cloudflare-Check), deshalb `Nf3SWf` diesmal per echtem Browser-Tab geoeffnet. Der
+  Shadertoy-Editor haelt den kompletten Quelltext clientseitig in `window.gShaderToy.mEffect.
+  mPasses[].mSource` (CodeMirror-Dokumente) - darüber den echten GLSL-Code aller drei Passes
+  (Common/Buffer A/Image, zusammen ~26.500 Zeichen) ausgelesen, statt die Optik zu erraten.
+  Ergebnis: "Play Plasma 3" ist keine einfache Ein-Pass-Formel, sondern eine volle physikalische
+  Mehr-Pass-Simulation eines "Air Arc"-Lichtbogens (Buffer A simuliert pro Pixel Ionisations-/
+  Hitze-/Feuchtigkeits-/Verkohlungs-Felder über Zeit, inkl. Terminal-Punkten, Gap-Hysterese,
+  Maus-Interaktion zum Greifen der Elektroden). Diese komplette Feedback-Buffer-Simulation 1:1 zu
+  portieren (Ping-Pong-Framebuffer, mehrstufige Diffusion, viele Tuning-Konstanten) waere ein
+  Vielfaches des bisherigen Aufwands - und ohne echten Browser hier praktisch nicht debugbar,
+  falls die Feedback-Schleife nicht sofort stabil laeuft (sehr leicht moeglich bei so einer
+  Simulation). Stattdessen gezielt nur die eigentliche OPTIK-Funktion extrahiert:
+  `filamentCore()`/`filamentGlow()` in der "Common"-Pass berechnen den Abstand eines Pixels zu
+  einer zwischen zwei Punkten `a`/`b` gespannten, per Rauschen gezackten Linie - das ist die
+  Funktion, die den charakteristischen "echten Lichtbogen"-Look erzeugt, unabhaengig von der
+  physikalischen Simulation drumherum.
+- **Technik aus `filamentCore()` uebernommen (Kommentar im Code verweist auf die genaue
+  Fundstelle):** 3 Oktaven "chaos"-Verschiebung in wachsender Frequenz (4x/12x/30x) mit
+  sinkendem Gewicht (1.0/0.45/0.14) plus eine langsamere "wobble"-Schwingung - dieselbe
+  Gewichtung wie im Original, `fbm21()`/`hash21()`/`noise21()` wortgleich uebernommen fuers
+  identische Rausch-"Korn". Im Original per parabolischer `envelope=t*(1-t)*4` an den beiden
+  Endpunkten auf Null gedaempft (die Linie ist dort an echten Elektroden fixiert) - fuer
+  unseren Ring gibt es keine Elektroden, deshalb kein Pinning noetig.
+- **"Als Kreis" (Nics Kernkorrektur):** statt Blitzen die vom Zentrum radial nach aussen laufen
+  (die (21)-Version), ist es jetzt EINE (bzw. zwei leicht versetzte, siehe unten) durchgehende,
+  geschlossene Kurve, die den Kreisrand entlanglaeuft und dabei radial nach innen/aussen crackled
+  - `ringDisp()` ueberträgt dieselbe Verschiebungs-Formel von einem punktgebundenen Segment auf
+  eine geschlossene Kurve. Wichtig fuer nahtloses Umlaufen: das Rauschen wird ueber einen
+  EINHEITSVEKTOR `(cos,sin)` gesampelt statt ueber den rohen Winkel - eine volle Umrundung landet
+  dadurch exakt wieder am Startpunkt im Rausch-Raum, es gibt also KEINE sichtbare Naht bei 0°/360°
+  (bei direkter Winkel-Nutzung als 1D-Rauschkoordinate waere das unvermeidlich, da der Winkel dort
+  von +π auf -π springt).
+- Zwei leicht phasenverschobene Ring-Lagen (`ringLayer` mit `phase=0`/`phase=37.5`, zweite Lage
+  duenner/schwaecher gewichtet) fuer ein "Buendel aus mehreren Fasern" statt einer einzelnen
+  sauberen Linie, plus eine unabhaengige, schnellere `crackle`-Helligkeits-Modulation obendrauf.
+  Farbverlauf von electric-blue zu weiss-heiss bei hoher Intensitaet, angelehnt an die
+  Core/Body-Farbgebung aus dem Original (`coreCol`/`bodyCol`).
+- Verifiziert per Node-Harness (komplette JS-Portierung der neuen Ring-Mathematik, da diese
+  Umgebung weiterhin weder echten Browser noch WebGL hat - siehe (2)): Ring-Zielradius bleibt bei
+  `chaos=0.06` um `radius=130` verlaesslich im Bereich ~110-145px (kein Explodieren/Kollabieren),
+  Helligkeit bleibt ueber einen breiten Zeit-/Winkel-/Radius-Sweep in `[0,1]` geklemmt ohne NaNs,
+  in JEDEM der 80 gesampleten Zeitpunkte ist irgendwo nahe des Rings sichtbares Glühen vorhanden,
+  am Zentrum (`r=0`) und weit aussen (`r=400`) korrekt ~0. Zusaetzlich der reine GLSL-Quelltext
+  extrahiert und auf balancierte Klammern geprueft sowie `node --check` gegen den kompletten
+  Haupt-Script-Block.
+- Weiterhin nicht im echten Browser/nicht mit echter GPU verifizierbar (siehe (2)) - gilt hier
+  weiterhin besonders fuer echtes GLSL-Compile-Verhalten. Stellschrauben: `u_chaos` (0.06, feine
+  Krachel-Staerke), die Wobble-Amplitude `0.34` in `ringDisp()` (grobe "Atem"-Bewegung des
+  Rings), `u_coreWidth`/`u_glowWidth` (2.2/16 CSS-px, Linien-/Glow-Dicke) sowie die zweite
+  Ring-Lage-Gewichtung `*0.5` in `main()` (wie stark die zweite, versetzte Faser durchscheint).
+
+### 2026-08-27 (21) (Strom-Effekt komplett auf echten WebGL-Shader umgestellt - Shadertoy-Referenz)
+- Nic: "Ich möchte das wirklich realistisch - mehr in die Richtung
+  https://www.shadertoy.com/view/4scGWj nur als Kreis." Das verlinkte Shader ist "Electro" von
+  sqrt_1 auf Shadertoy (Shadertoy-Seite blockt direkten Abruf mit HTTP 403 - Titel/Urheber per
+  Websuche verifiziert). Direkter GLSL-Quellcode war nicht einsehbar, aber die Gattung ist
+  eindeutig: ein per Rausch-Funktionen (fbm/Value-Noise) gezacktes, staendig kriechendes/
+  flackerndes Elektro-Plasma, eng verwandt zu den bekannten "Plasma Globe"-Shadern (z. B. iq,
+  shadertoy.com/view/XsX3RB) - dort mehrere Lichtbogen-"Arme", die sich vom Zentrum einer Kugel/
+  eines Balls zur Oberflaeche winden.
+- **Kompletter Technikwechsel:** der Canvas-2D-Linienzug-Ansatz aus (20) (statische Punkte, per
+  JS verbunden/gezeichnet) wurde komplett durch einen echten WebGL-Fragment-Shader ersetzt - pro-
+  Pixel-Berechnung mit Rausch-Funktionen ist genau die Technik, die diese Shadertoy-Optik
+  ausmacht, und laesst sich mit Linien/Punkten in Canvas-2D strukturell nicht erreichen.
+  `.hero-xray-spark` ist jetzt ein WebGL-Context (`getContext("webgl")`, Fallback auf
+  `"experimental-webgl"`) statt `"2d"`.
+- **Shader-Aufbau (`fsSource`, siehe Script):** sechs Elektro-"Arme" (`ARM_COUNT`) strahlen vom
+  Hover-Kreiszentrum (`u_center`) zum Kreisrand (`u_radius`) aus, jeder Pixel wird gegen alle
+  sechs Arme getestet und die Beitraege addiert:
+  - **Flackern:** `armActive` springt pro Arm alle ~110ms abrupt zwischen aktiv/inaktiv
+    (`hash11(armIndex + floor(u_time*9.0))` durch `smoothstep` geschickt) - echtes elektrisches
+    Flackern ist kein sanftes Fade, sondern ploetzliche Sprünge zwischen Entladungspfaden.
+  - **Wiggle:** die Mittellinie jedes Arms wird per Value-Noise (`vnoise`, Standard-Hash+Bilinear-
+    Interpolation) abhaengig von Radius UND Zeit ausgelenkt, gedaempft nahe des Zentrums
+    (`smoothstep(0.0,0.25,rNorm)`) - dadurch straff am Ursprung, zunehmend gezackt zum Rand hin,
+    wie ein echter Lichtbogen statt einer geraden Linie.
+  - **Glow-Kurven:** Abstand jedes Pixels zur (gewinkelten) Mittellinie per
+    `atan(sin(d),cos(d))`-Winkel-Wrap in einen Bogenlaengen-Abstand umgerechnet, daraus per
+    `exp(-d²/breite)` ein scharfer Kern + ein breiterer, schwaecherer Glow-Saum (zwei
+    uebereinandergelegte Gauss-Kurven statt einer harten Linie - der uebliche Trick fuer
+    "leuchtende" statt "gemalte" Linien in Shadern).
+  - **Zentrum:** zusaetzlicher pulsierender heller Kernpunkt am Ursprung (Entladungsquelle), per
+    Rauschen leicht atmend.
+  - Farbe: additive Mischung von dunklerem zu hellerem Blau-Weiss (`vec3(0.15,0.55,0.95)` bis
+    `vec3(0.9,0.99,1.0)`), abgestimmt auf den bestehenden X-Ray-Blaustich aus (19)/(20).
+- **DPR-Korrektheit:** Kern-/Glow-Breiten (`u_coreWidth`/`u_softWidth`/`u_centerGlowRadius`) und
+  `u_radius` werden aus JS mit `heroSparkDpr` skaliert an den Shader uebergeben (nicht im Shader
+  hartkodiert) - dadurch sieht der Effekt bei 1x und 2x devicePixelRatio in echten Bildschirm-
+  Millimetern gleich gross aus, nicht doppelt so duenn/dick.
+- **Koordinatensystem:** `gl_FragCoord` zaehlt von unten links, waehrend `--hero-mask-y` (DOM-
+  Konvention) von oben zaehlt - `u_center.y` wird deshalb als `canvas.height - maskYPx*dpr`
+  uebergeben, sonst wuerde der Effekt vertikal gespiegelt zur tatsaechlichen Cursor-Position
+  erscheinen.
+- **Weiches Ausblenden statt Abschneiden:** beim `mouseleave` wird der Render-Loop NICHT sofort
+  gestoppt/geleert, sondern laeuft noch 200ms weiter (Dauer der bestehenden CSS-Opacity-
+  Transition auf `.hero-xray-spark`) - sonst wuerde die Opacity-Transition einen bereits leeren
+  Canvas ausfaden statt das zuletzt gezeichnete Plasma sichtbar verklingen zu lassen.
+- Faellt WebGL-Kontext-Erstellung fehl (sehr alte/eingeschraenkte Browser) oder ist
+  `prefers-reduced-motion` aktiv, bleibt `heroSparkProgram` `null` - die Hover-Maske/X-Ray-
+  Funktion aus (16)/(19) funktioniert dann unveraendert weiter, nur ohne den Zusatz-Effekt
+  (`startHeroSpark()` no-opt in dem Fall).
+- Verifiziert per Node-Harness (komplette JS-Portierung der Shader-Mathematik, da diese Umgebung
+  weiterhin weder echten Browser noch WebGL hat - siehe (2)): `glow` bleibt ueber einen breiten
+  Zeit-/Winkel-/Radius-Sweep immer in `[0,1]` geklemmt, keine `NaN`s, in JEDEM gesampleten
+  Zeitpunkt ist irgendwo sichtbares Glühen vorhanden (Arme sind nie alle gleichzeitig komplett
+  dunkel), das Flackern eines einzelnen Arms wechselt tatsaechlich zwischen an/aus ueber die Zeit
+  (159/241 von 400 Samples), weit ausserhalb des Radius (2x) faellt das Glühen korrekt auf ~0.
+  Zusaetzlich der reine GLSL-Quelltext extrahiert und auf balancierte Klammern/Parameter geprueft,
+  sowie `node --check` gegen den kompletten Haupt-Script-Block.
+- Weiterhin nicht im echten Browser/nicht mit echter GPU verifizierbar (siehe (2)) - das trifft
+  hier besonders zu, da echtes GLSL-Compile-Verhalten (Shader-Compiler-Fehler wuerden aktuell nur
+  stillschweigend dazu fuehren, dass der Effekt gar nicht erscheint, siehe `heroSparkProgram`-
+  Null-Fallback) nur auf echter Hardware pruefbar ist. Stellschrauben:
+  `ARM_COUNT`/`PI2`-Umgebung (Anzahl Arme, im Shader selbst), `u_coreWidth`/`u_softWidth`
+  (Linienbreite), die `9.0`/`1.4`/`6.0`-Zeitfaktoren (Flacker-/Wiggle-/Puls-Tempo), alle in
+  `fsSource` bzw. den `gl.uniform*`-Aufrufen in `renderHeroSpark()`.
+
+### 2026-08-27 (20) (Neuer Strom-/Blitz-Effekt am Rand des Hover-Kreises)
+- Nic: "Ich möchte im Kreis eine Art Strom-Effekt erzeugen, der beim Hovern sichtbar wird am Rand
+  - kleine Blitze die aufflackern und drumherum animiert sind - gern detailliert ausarbeiten."
+- Umsetzung als eigene Canvas-Ebene `.hero-xray-spark` (neues `<canvas id="hero-xray-spark-
+  canvas">` in `.hero-photo-frame`, ueber `.hero-photo` liegend, `pointer-events:none` damit sie
+  die Hover-Erkennung nicht blockiert) statt CSS-Formen - echte gezackte Blitz-Pfade mit
+  zufaelliger Geometrie sind per Canvas-Linienzug deutlich einfacher und ueberzeugender als mit
+  CSS/SVG-Primitiven nachzubilden.
+- **Geometrie (`regenerateHeroSparkBolts`):** pro "Frame" werden `HERO_SPARK_COUNT` (6) Blitze
+  erzeugt, jeder ein Linienzug aus `HERO_SPARK_SEGMENTS+1` (6) Punkten. Jeder Blitz bekommt einen
+  zufaelligen Basiswinkel um den Kreismittelpunkt; die Zwischenpunkte weichen davon sowohl im
+  Winkel (`angleSpread`, ±0.16-0.32 rad) als auch im Radius (`HERO_SPARK_R_MIN`/`_MAX` = 0.8-1.18x
+  `HERO_MASK_RADIUS`) zufaellig ab - diese Doppel-Zackigkeit (radial UND tangential, nicht nur
+  eins von beidem) ist es, was den Pfad wie einen elektrischen Blitz statt wie eine wellige Linie
+  wirken laesst. Der Radius-Bereich (mal knapp innerhalb, mal ueber den Kreisrand hinausragend)
+  erzeugt den Eindruck von Funken, die genau am Rand "entladen" statt eines sauberen Rings.
+- **Flackern (`heroSparkLoop`):** kein glattes Fade, sondern echtes Neu-Wuerfeln aller Blitz-Pfade
+  alle `HERO_SPARK_REGEN_MS` (90ms) per `requestAnimationFrame`-Loop - abrupte Sprünge treffen die
+  "flackern"-Anforderung besser als eine interpolierte Animation (echte elektrische Entladungen
+  sind auch nicht smooth). Farbe/Glow (`rgba(205,247,255,...)` Kernlinie + cyan-er `shadowBlur`-
+  Schein) an den bereits vorhandenen X-Ray-Blaustich (`sepia(.55) hue-rotate(175deg)
+  saturate(3.2)` aus (19)) angelehnt, damit es wie ein zusammenhaengender "Roentgen-Strom"-Look
+  wirkt statt wie ein aufgesetzter Fremdkoerper.
+- Sichtbarkeit haengt bewusst an EINEM einzigen Trigger: dieselben `mousemove`/`mouseleave`-
+  Handler, die auch `--hero-mask-r` setzen, starten/stoppen den Loop und togglen die
+  `spark-active`-Klasse (Opacity-Transition in CSS) - kein zweiter, potenziell aus dem Tritt
+  geratender Mechanismus (siehe genau dieses Problem, das in (19) beim alten X-Ray-Layer gefixt
+  wurde). `prefers-reduced-motion` respektiert (Loop startet dort gar nicht, konsistent mit dem
+  bestehenden Rauch-Effekt-Pattern).
+- **Parallax-Sync:** dieselbe Klasse Bug wie in (19) vorgebeugt - die Canvas-Koordinaten sind
+  relativ zum unverschobenen `.hero-photo-frame` berechnet, das Foto selbst laeuft aber per
+  Scroll-Parallax (`heroPhotoY`) davon; derselbe `translateY(...)`-Transform wird deshalb jetzt
+  auch auf `.hero-xray-spark` gesetzt, synchron mit Foto und X-Ray-Ebene.
+- Canvas-Groesse (`sizeHeroSparkCanvas`, DPR-bewusst wie die bereits bestehenden Canvas-Effekte im
+  Projekt) wird bei Setup, bei `resize` UND zusaetzlich beim `load`-Event von `heroPhotoImg`
+  neu ermittelt (das Bild kann beim initialen Skript-Lauf trotz `fetchpriority="high"` noch nicht
+  fertig geladen/layoutet sein).
+- Verifiziert per Node-Harness (reine Geometrie-Funktion ohne Canvas/DOM, da diese Umgebung
+  weiterhin keinen echten Browser hat - siehe (2)): korrekte Anzahl Blitze/Punkte, jeder
+  Punktabstand zum Zentrum liegt garantiert innerhalb `[radius*0.8, radius*1.18]`, Alpha/Breite
+  innerhalb der erwarteten Bereiche. Zusaetzlich `node --check` gegen den extrahierten
+  Haupt-Script-Block.
+- Weiterhin nicht im echten Browser verifizierbar (siehe (2)) - insbesondere Timing/Optik des
+  Flackerns und ob die Blitze bei `HERO_MASK_RADIUS=130px` gut sichtbar sind. Stellschrauben:
+  `HERO_SPARK_COUNT` (Anzahl), `HERO_SPARK_REGEN_MS` (Flacker-Tempo), `HERO_SPARK_R_MIN`/`_MAX`
+  (wie weit die Blitze radial um den Rand herum "wandern" duerfen).
+
+### 2026-08-27 (19) (Hero-X-Ray-Effekt: Verschiebungs-Bug behoben + Redesign auf "nur im Hover-Kreis aktiv")
+- Nic: "Der x-ray Effekt hat noch ein Problem: immer wenn der durch den Hover ausgeloest wird,
+  liegt das eigentliche Bild noch verschoben drueber. Das sollte 1zu1 drunter liegen. Der x-ray
+  soll auch wirklich nur an der Stelle stattfinden, wo gerade der Kreis liegt beim Hovern -
+  eigentlich muss das xray Bild dann genau hinter dem anderen liegen und nur an der Stelle aktiv
+  werden wo ich hovere." Zwei getrennte Punkte: (1) ein Verschiebungs-Bug, (2) ein Redesign-Wunsch
+  weg vom bisherigen Vollflaechen-Overlay hin zu einer echten Kreis-Blende.
+- **Root Cause Verschiebung (1):** die Scroll-Parallax fuer das Hero-Foto (Feedback Nic
+  2026-08-19, `heroPhotoImg.style.transform = translateY(${heroPhotoY}px)`) lief bisher NUR auf
+  `heroPhotoImg`, nie auf `heroPhotoXrayImg` - beide Bilder liefen also immer leicht auseinander,
+  sobald ueberhaupt gescrollt wurde (nicht nur in einem Sonderfall). Fix: derselbe
+  Transform-String wird jetzt synchron auf beide Bilder gesetzt.
+- **Redesign (2):** die Roentgen-Ebene lag bisher als EIGENSTAENDIGER Vollflaechen-Layer OBEN
+  drueber (`z-index:2`, eigene `opacity:0`/`.xray-active{opacity:.82}`-Klasse per JS beim
+  Hovern ein-/ausgeblendet) - zwei komplett unabhaengige Hover-Trigger (Maskenradius fuer das
+  Loch im normalen Foto UND die Opacity-Klasse fuer die Roentgen-Ebene) mussten exakt synchron
+  UND pixelgenau deckungsgleich bleiben, was strukturell anfaellig fuer genau die gemeldete
+  Verschiebung war. Jetzt liegt die Roentgen-Ebene stattdessen HINTER `.hero-photo` (`z-index:0`
+  statt `2` - DOM-Reihenfolge nach `.hero-name`, ebenfalls `z-index:0`, sorgt fuer korrekte
+  Stapelung trotz gleichem Wert: bei gleichem z-index gewinnt das spaeter im DOM stehende
+  Element). Sie ist jetzt konstant sichtbar/positioniert (kein eigener Opacity-Trigger mehr) -
+  aber ausserhalb des Kreises verdeckt sie das weiterhin komplett opake `.hero-photo` einfach
+  automatisch. Sichtbarkeit haengt dadurch nur noch an EINER Quelle (`--hero-mask-r`/`-x`/`-y`)
+  statt an zwei getrennten Mechanismen - die alte `xray-active`-Klasse (CSS + JS) komplett
+  entfernt.
+- Verifiziert per Stacking-Kontext-Analyse (kein echter Browser verfuegbar, siehe (2)):
+  `.hero-stack` ist der einzige Vorfahre mit `position:relative`+`z-index` (bildet den
+  Stacking-Context), `.hero-photo-frame` selbst hat weder `z-index` noch sonst eine
+  Context-ausloesende Eigenschaft - `.hero-photo-xray` (z-index:0) und `.hero-name` (z-index:0)
+  landen also direkt im selben Stacking-Context und werden per DOM-Reihenfolge sortiert (Name
+  zuerst im DOM -> X-Ray-Ebene, die spaeter im DOM steht, gewinnt und liegt darueber),
+  `.hero-photo` (z-index:1) unveraendert ganz vorne. `node --check` gegen den extrahierten
+  Haupt-Script-Block.
+- Weiterhin nicht im echten Browser verifizierbar (siehe (2)) - bitte insbesondere pruefen, ob
+  die Kombination aus X-Ray-Bild + durchscheinendem Namenszug (beide jetzt gemeinsam nur im
+  Kreis sichtbar, per `mix-blend-mode:screen` gemischt) optisch noch die gewuenschte Wirkung
+  hat, da vorher die Roentgen-Ebene die GESAMTE Flaeche einfaerbte und jetzt nur noch den Kreis.
+
+### 2026-08-27 (18) (Scroll-gebundene Typing-Animation erneut umgesetzt, diesmal ohne Canvas-Wrapping)
+- Nic: "Beim Scrollen sollen die Schriften typen - gebunden an den Scroll - die Titel die ich dir
+  bereits gegeben hab - umsetzen." Gleiche drei Elemente wie beim ersten Anlauf: "you're looking
+  for an" (`.intro-pretitle-text`), "well.. here i am?" (`.intro-quote-highlight`), "...wanna join
+  me?" (`.intro-followup-text`). War schon einmal umgesetzt, dann aber explizit wieder entfernt
+  ("Ich möchte NUR den Abroll-/Aufroll-Effekt auf der Font - nicht den anderen!") - jetzt erneut
+  angefragt, nachdem der Rolleffekt seitdem stabil lief (14)-(17).
+- Diesmal deutlich einfacher als beim ersten Anlauf: damals musste `updateTypingReveal()` sich mit
+  `LensFX`s Canvas-Wrapping herumschlagen (Text wurde in ein separates `.lens-src-text`-Kind-
+  Element verschoben, `el.textContent` durfte danach nie direkt gesetzt werden). Seit (14) gibt es
+  dieses Wrapping nicht mehr - der Rolleffekt ist nur noch ein CSS-`transform` auf dem echten
+  Element. `updateTypingReveal(el, fullText, prog)` kann `el.textContent` deshalb jetzt immer
+  direkt setzen, ganz ohne Sonderfall.
+- `typeProg = (vh - r.top) / vh`: 0 sobald die Sektion von unten den Viewport betritt (`r.top ===
+  vh`), erreicht 1 genau wenn `r.top === 0` wird - bei Pretitle/Followup also kurz bevor/waehrend
+  sie zentriert ist, bei der Quote exakt beim Einrasten der Pin-Phase (r.top folgt dort waehrend
+  des Anflugs der normalen Fliess-Position, siehe (13)). Der Zitattext steht damit fertig getippt
+  da, bevor der Punkte-Trail aus (5) danach weitertippt - ein durchgehender Typing-Eindruck ueber
+  Zitat + Trail hinweg. Nach `typeProg=1` bleibt der volle Text stehen; der (unabhaengig davon
+  laufende) Rolleffekt aus (14)-(16) verzerrt ihn weiterhin unveraendert beim Zentrieren/
+  Verlassen.
+- Volltext jedes Elements einmalig beim Laden gesichert (`introPretitleTextFull`,
+  `introQuoteHighlightFull`, `introFollowupTextFull`), bevor irgendetwas ihn per Scroll aendert.
+- Verifiziert per Node-Harness (reine Formeln ohne DOM, siehe (2)): `revealCount` erreicht fuer
+  alle drei echten Textstrings exakt die volle Laenge bei `prog=1`, faellt beim Runterscrollen nie
+  zurueck. Zusaetzlich `node --check` gegen den extrahierten Haupt-Script-Block.
+- Weiterhin nicht im echten Browser verifizierbar (siehe (2)) - insbesondere ob sich gleichzeitiges
+  Tippen + Rollen gut anfuehlt. Stellschraube: der Divisor `vh` in `typeProg` (Anflugstrecke, in
+  der getippt wird).
+
+### 2026-08-27 (17) (2-zeilige Fonts rollen jetzt als EIN Objekt statt Zeile fuer Zeile einzeln)
+- Nic: "Top! 2-zeilige Fonts aber IMMER als 1 Objekt betrachten -> muss so animiert werden."
+  Betrifft "DIGITAL"/"DESIGNER?" (`.intro-title-text`) und "NICLAS"/"KOCH" (`.hero-name`) - beide
+  zweizeilig gestapelt. Der Rolleffekt aus (14)-(16) wurde bisher pro ZEILE einzeln angewandt
+  (`introTitleSpans.forEach(...)`/`heroNameSpans.forEach(...)`, jede Zeile mit eigenem
+  `transform-origin` an ihrer EIGENEN Oberkante) - wirkte wie zwei unabhaengige Klappen statt
+  einer durchgehenden 2-zeiligen Banderole, die sich als Ganzes dreht.
+- Fix: Rolldrehung greift jetzt auf dem GEMEINSAMEN Block an, nicht mehr pro Zeile:
+  - `.intro-title-text` (der `<p>`, der beide Zeilen umschliesst) bekommt `transform-origin:50%
+    0%` direkt selbst und wird als EIN Element gedreht (`introTitleTextEl.style.transform =
+    rollTransform(lensProg)`) - kein neuer Wrapper noetig, da dieses Element sonst kein eigenes
+    Transform traegt.
+  - `.hero-name` dagegen traegt BEREITS ein eigenes Transform (Zentrierung `translate(-50%,-50%)`
+    + Y-Parallax aus Feedback 2026-08-19). Ein zweites Transform (die Drehung) dort einfach
+    dazuzumischen haette bedeutet, Zentrierung/Parallax/Rotation in einem String zu kombinieren -
+    fehleranfaellig wegen CSS-Transform-Reihenfolge. Stattdessen neuer innerer Wrapper
+    `.hero-name-roll` (in der HTML zwischen `.hero-name` und die beiden `<span>`s eingefuegt) -
+    `.hero-name` bleibt unrotiert und kuemmert sich weiterhin nur um Position/Parallax,
+    `.hero-name-roll` traegt `transform-origin:50% 0%` und ausschliesslich die Rolldrehung. Das
+    bisherige `gap:.16em` (Puffer zwischen den Zeilen) ist von `.hero-name` auf `.hero-name-roll`
+    mitgewandert, da es jetzt DORT der direkte Flex-Container der beiden Zeilen ist.
+  - `introTitleSpans`/`heroNameSpans` (die alten Pro-Zeile-NodeLists) komplett entfernt, ersetzt
+    durch `introTitleTextEl`/`heroNameRollEl` (je ein einzelnes Element).
+- Verifiziert: `node --check` gegen den extrahierten Haupt-Script-Block, Grep-Audit, dass keine
+  der alten `introTitleSpans`/`heroNameSpans`-Referenzen mehr aktiv aufgerufen werden (nur noch
+  in erklaerenden Kommentaren erwaehnt).
+- Weiterhin nicht im echten Browser verifizierbar (siehe (2)) - insbesondere ob die 2-zeilige
+  Banderole beim Hero-Namen durch den neuen `.hero-name-roll`-Wrapper weiterhin exakt so
+  positioniert/zentriert ist wie vorher (strukturelle HTML-Aenderung, nicht nur Werte-Tuning).
+
+### 2026-08-27 (16) (Woelbung: Anflug und Abflug jetzt gegenlaeufig statt gleich)
+- Nic: "Scroll von oben nach unten korrekt die Animation - wenn man weiterscrollt und Font nach
+  oben an den View geht noch falsch - genau andersrum die Woelbung!" Reinscrollen (Element noch
+  unterhalb der Viewport-Mitte) war nach (15) richtig, Rausscrollen (Element bereits oberhalb der
+  Mitte, verlaesst oben) drehte aber in dieselbe Richtung wie der Einstieg statt spiegelverkehrt.
+- Root Cause: `lensProg` aus (13) war bewusst symmetrisch ueber den BETRAG des Abstands zur Mitte
+  (`Math.abs(centerCross)`) gebaut - Anflug und Abflug bekamen dadurch exakt denselben (positiven)
+  Drehwinkel, nur zeitlich gespiegelt, nie das entgegengesetzte Vorzeichen. Fuer eine echte
+  "Glasrolle" muss aber die Drehrichtung zwischen "kommt rein" und "geht raus" umschlagen, nicht
+  nur die Staerke.
+- Fix: `lensProg` traegt jetzt das VORZEICHEN von `centerCross` (`Math.sign(centerCross) * rollMag`
+  statt nur `rollMag`) - positiv waehrend des Anflugs (centerCross > 0, unterhalb der Mitte,
+  bereits bestaetigt korrekt), negativ waehrend des Abflugs (centerCross < 0, oberhalb der Mitte).
+  `rollTransform()` selbst unveraendert (`deg = prog * ROLL_MAX_DEG`) - durch das jetzt
+  vorzeichenbehaftete `prog` dreht dieselbe Formel automatisch gegengleich statt eine eigene
+  Fallunterscheidung fuer "Anflug vs. Abflug" zu brauchen.
+- Verifiziert per Node-Harness: `rollTransform(lensProg(...))` liefert fuer betragsgleiche
+  Distanzen auf beiden Seiten der Mitte exakt entgegengesetzte Winkel (`+65.68deg` bei Anflug,
+  `-65.68deg` bei Abflug bei gleichem Abstand), 0 exakt in der Mitte, `Math.sign` der beiden
+  Ergebnisse zueinander invertiert bestaetigt. Zusaetzlich `node --check` gegen den extrahierten
+  Haupt-Script-Block.
+- Weiterhin nicht im echten Browser verifizierbar (siehe (2)).
+
+### 2026-08-27 (15) (Rollrichtung umgekehrt + staerker)
+- Nic: "Das ist so richtig gut! Aber genau anders rum - beim Runterscrollen muesste die Schrift
+  andersrum rollen / beim Hochscrollen auch anders rum ... Schrift muss von unten nach oben
+  'abrollen' - die Schrift darf gern extremer gebogen sein". Mechanik aus (14) (CSS-3D-Drehung um
+  die Oberkante, symmetrisches `lensProg`) war also der richtige Ansatz, nur die Rotationsrichtung
+  war falsch herum.
+- Vorzeichen des Drehwinkels in `rollTransform()` umgedreht: `deg = -prog * ROLL_MAX_DEG` ->
+  `deg = prog * ROLL_MAX_DEG` (nur dieses eine Vorzeichen, Rest der Funktion/Mechanik
+  unveraendert). Zusaetzlich staerker: `ROLL_MAX_DEG` 62 -> 80 (staerkere Drehung, naeher an
+  90deg/Kante-zum-Betrachter), `ROLL_PERSPECTIVE_PX` 900 -> 650 (kleinerer Perspektive-Wert =
+  ausgepraegtere Tiefenwirkung/Verbreiterung nahe am Betrachter).
+- Verifiziert per Node-Harness (reine `rollTransform()`-Logik ohne DOM) und `node --check` gegen
+  den extrahierten Haupt-Script-Block.
+- Weiterhin nicht im echten Browser verifizierbar (siehe (2)) - falls die Staerke noch nicht ganz
+  passt: `ROLL_MAX_DEG`/`ROLL_PERSPECTIVE_PX` sind weiterhin die Stellschrauben.
+
+### 2026-08-27 (14) (Rolleffekt komplett auf CSS-3D-Drehung umgestellt statt Canvas-Warp)
+- Nic: "Das ist falsch. Sieh die komplette Sektion als Glasrolle. Die Fonts sind oben nach
+  unten abgerollt - mittig steht die Schrift gerade, wenn man weiterscrollt rollt sie sich oben
+  wieder in meine Richtung" - Korrektur zu (13): der Rolleffekt sollte inhaltlich schon stimmen
+  (glatt in der Mitte, gerollt an den Raendern, siehe (13)), aber die TECHNISCHE Umsetzung
+  (Canvas-Streifen-Warp, `LensFX`) war der falsche Ansatz dafuer und wurde nie im Browser
+  verifiziert bestaetigt. Rueckfrage gestellt, ob die Verzerrung weiterhin per Canvas (nur
+  Anker oben statt unten) oder als echte 3D-Drehung per CSS-Perspektive um eine Achse oben
+  passieren soll - Nic hat die CSS-3D-Variante gewaehlt.
+- **Kompletter Ersatz von `LensFX`** (Canvas-Rasterung, Streifen-Warp, `computeUpwardHeadroom()`,
+  Font-Load-Race-Fix, alles aus (9)-(13)) durch eine neue, viel kleinere `rollTransform(prog)`-
+  Funktion: `perspective(900px) rotateX(${-prog * 62}deg)`, angewandt direkt auf die echten
+  DOM-Textelemente (kein Canvas, kein zweites Text-Span, kein Rastern) mit
+  `transform-origin: 50% 0%` (Achse an der Oberkante statt wie vorher an der Unterkante). `prog`
+  ist weiterhin dasselbe symmetrische `lensProg` aus (13) (0 = glatt in einer Ruhezone um die
+  Viewport-Mitte, waechst zu 1 an den Raendern) - nur die RENDERING-Technik hat sich geaendert,
+  nicht die grundsaetzliche Verzerrungs-Kurve.
+- Warum das strukturell robuster ist: die kompletten Bugklassen aus (11)/(12) (doppelte Anzeige
+  beim Animationsstart, "zerbrechende" Buchstaben bei starker horizontaler Spreizung,
+  Font-Load-Race zwischen Fallback- und Web-Font) koennen mit dieser Technik gar nicht mehr
+  auftreten - es gibt keine zweite gezeichnete Kopie des Texts mehr, die mit dem Original
+  ueberlappen oder aus dem Sync laufen koennte. Die Verbreiterung nahe am Betrachter ("laeuft
+  da wieder breiter aus", Original-Feedback ganz am Anfang) entsteht jetzt automatisch durch
+  `perspective()` selbst statt durch eine eigene `curlBulge()`-Berechnung.
+- `.intro-pretitle-text`/`.intro-followup-text` bekommen zusaetzlich zur bestehenden
+  `translateY(...)`-Scroll-Parallax (siehe Feedback Nic 2026-08-19 (3)) jetzt noch diesen
+  Rolleffekt auf demselben Element - beide Transforms muessen sich einen `style.transform`-String
+  teilen (sonst ueberschreibt der zweite Aufruf den ersten), deshalb speichert der Rolleffekt sein
+  Ergebnis zwischen (`el._rollTransform`) und der Parallax-Code weiter unten im selben
+  `updateOnScroll()` setzt am Ende `translateY(...) ${rollTransform}` zusammen. `introTitleSpans`/
+  `introQuoteHighlightEl`/`heroNameSpans` haben keine eigene Parallax auf sich selbst, dort direkt
+  gesetzt.
+- CSS: `transform-origin:50% 0%` (+ `will-change:transform`) auf alle fuenf betroffenen Selektoren
+  ergaenzt (`.intro-title-text span`, `.hero-name span`, `.intro-quote-highlight`,
+  `.intro-followup-text`, `.intro-pretitle-text`). Die `.lens-canvas`-Regel und alle toten
+  Code-Referenzen (`ensure`, `buildRaster`, `drawLine`, `curlStretch`, `curlBulge`, `wrapLines`,
+  `computeUpwardHeadroom`, `allStates`, der `document.fonts.ready`-Invalidate-Hook) entfernt.
+- Verifiziert per Node-Harness (reine `rollTransform()`-Logik ohne DOM/CSS-Rendering, da diese
+  Umgebung weiterhin keinen echten Browser hat - siehe (2)): 0 bei `prog=0`, Winkel-Betrag waechst
+  monoton mit `prog`, erreicht `-62deg` bei `prog=1`. Zusaetzlich `node --check` gegen den
+  kompletten extrahierten Haupt-Script-Block sowie ein Grep-Audit, dass keine der alten
+  `LensFX`-internen Funktionsnamen mehr irgendwo aufgerufen werden.
+- Weiterhin nicht im echten Browser verifizierbar (siehe (2)) - das gilt hier besonders, da
+  `perspective`/`rotateX`-Rendering (Kantenglaettung, Text-Rendering bei starkem Winkel,
+  Zusammenspiel mit `letter-spacing`/`white-space:nowrap`) sich nur am echten Bildschirm
+  beurteilen laesst. `ROLL_PERSPECTIVE_PX` (900) und `ROLL_MAX_DEG` (62) sind die Stellschrauben
+  fuer "wie nah/wie stark gedreht" - kleinerer `ROLL_PERSPECTIVE_PX`-Wert verstaerkt die
+  Verzerrung/Verbreiterung, groesserer `ROLL_MAX_DEG` dreht staerker weg von der Kamera.
+
+### 2026-08-27 (13) (Symmetrischer Rolleffekt beim Ein- UND Ausscrollen)
+- Nic (2 Punkte): "'you're looking for an', 'well.. here i am?', '...wanna join me?' zusätzlich
+  beim Scrollen angehängt an Scrollposition soll typing animiert werden ... unbedingt an
+  Scrolling ausrichten" und "Die Animation der gesamten Font beim Ein- und Ausscrollen im
+  jeweiligen Bereich muss noch angepasst werden" - mit einem Bild erklärt: eine Rolle aus Glas,
+  an deren Oberseite die Schrift befestigt ist; beim Drehen kommt die Schrift oben schief rein,
+  ist in der Mitte gerade/lesbar, und verschwindet beim Weiterdrehen wieder schief/breiter. Beide
+  Teile zunächst umgesetzt (Rolleffekt symmetrisch + neue Typing-Animation), direkt danach klares
+  Feedback: **"Ich möchte NUR den Abroll-/Aufroll-Effekt auf der Font - nicht den anderen!"** -
+  Typing-Animation komplett wieder entfernt (Funktion `updateTypingReveal()`, die drei
+  `introXTextFull`-Konstanten und alle Aufrufe im `introScrollFxEls`-Loop raus), nur der
+  Rolleffekt-Teil unten ist tatsächlich im Code.
+- **Rolleffekt symmetrisch:** `lensProg` (treibt den bestehenden Rolleffekt in `LensFX`, siehe
+  (9)-(12)) war bisher einseitig - `(vh*.15 - centerCross)/(vh*.9)` blieb exakt 0, solange das
+  Element noch UNTERHALB der Viewport-Mitte war (kompletter Anflug also immer glatt/ungerollt),
+  und rollte erst NACH dem Durchqueren der Mitte auf bis `MAX_STRETCH` - blieb danach für immer
+  maximal gerollt hängen (nur das bestehende Blur/Fade-Gate ließ die Sektion verschwinden). Passt
+  nicht zum "schief - gerade - schief"-Bild. Fix: symmetrische Formel über den ABSOLUTEN Abstand
+  zur Viewport-Mitte - `(Math.abs(centerCross) - ROLL_DEADZONE) / ROLL_RANGE`, dieselben, bereits
+  überlappungssicheren `.15`/`.9`-Werte (jetzt als benannte Konstanten `ROLL_DEADZONE`/
+  `ROLL_RANGE`), nur auf den Betrag statt nur die positive Richtung angewandt. Ergebnis: glatt/
+  lesbar in einer Ruhezone um die Mitte, rollt symmetrisch auf, je weiter das Element in EINE der
+  beiden Richtungen (Anflug von unten ODER Abflug nach oben) von der Mitte wegwandert.
+  `introQuoteEl` (die sticky `.intro-quote-pin`) brauchte dafür KEINEN Sonderfall mehr wie bisher
+  (vorher eigenes `quoteLensProg` über `quotePinProg`) - `r.top` dieses Elements folgt schon von
+  selbst dem richtigen Verlauf (sinkt normal während des Anflugs, hängt exakt bei 0 während der
+  gesamten Pin-Phase → `centerCross`≈0 → `lensProg`≈0 → glatt/lesbar während des Lesens, steigt
+  danach beim Loslassen wieder normal an). `quotePinProg` bleibt unverändert und ausschließlich
+  für den Punkte-Trail aus (5) zuständig (der soll weiterhin linear über die GESAMTE Pin-Phase
+  laufen, nicht symmetrisch). Da die zugrundeliegende Curl-/Bulge-/Headroom-Mathematik aus (9)-
+  (12) selbst unangetastet bleibt (nur der Zeitplan, WANN welcher `eased`-Wert erreicht wird,
+  ändert sich), bleiben alle bisherigen Überlappungs-Garantien (`computeUpwardHeadroom()` etc.)
+  unverändert gültig - kein neues Überlapp-Risiko.
+- Zusätzlich jetzt auch für `.intro-pretitle-text` ("you're looking for an") aktiviert - hatte
+  bisher GAR KEINEN Rolleffekt (nur Blur/Fade beim Verlassen), obwohl es dieselbe
+  `introScrollFxEls`-Schleife durchläuft. Neuer Zweig `else if (el === introPretitleEl)` analog zu
+  Title/Quote/Followup/Hero ergänzt.
+- Verifiziert per Node-Harness (eigenständige Neuimplementierung der reinen `lensProg`-Formel ohne
+  DOM, da diese Umgebung weiterhin keinen echten Browser hat - siehe (2)/(11)/(12)): exakt 0 bei
+  `centerCross=0`, symmetrisch für `+d`/`-d` gleicher Distanz, monoton wachsend mit dem Abstand
+  zur Mitte in beide Richtungen, korrekt auf 1 gedeckelt bei großer Distanz. Zusätzlich
+  `node --check` gegen den aus der gepatchten Datei extrahierten Haupt-Script-Block (kompletter
+  Inhalt des Haupt-`<script>`-Tags, nicht nur ein Ausschnitt) - sowohl direkt nach der
+  Rolleffekt-Änderung als auch nochmal nach dem Entfernen der Typing-Animation.
+- Weiterhin nicht im echten Browser verifizierbar (siehe (2)) - insbesondere ob die Ruhezone
+  (`ROLL_DEADZONE`) groß genug ist um beim Zentrieren wirklich angenehm lange lesbar zu bleiben,
+  und ob der neue Rolleffekt beim Pretitle sich stimmig anfühlt (dort zum ersten Mal aktiv). Falls
+  nicht: `ROLL_DEADZONE`/`ROLL_RANGE` sind die Stellschrauben.
+
 ### 2026-08-27 (12) (Rolleneffekt verstaerkt + Doppel-Anzeige beim Animationsstart behoben)
 - Nic (2 Punkte, mit 2 Screenshots): "Immernoch nicht genauso wie ich es will geht aber in die
   richtige richtung - bei creative die fonts nochmal mehr 'abrollen' lassen nach oben und unten"
